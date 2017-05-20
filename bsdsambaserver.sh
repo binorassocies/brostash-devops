@@ -3,10 +3,9 @@ NOW=$(date +%Y.%m.%d.%H.%M.%S)
 SMB_SHARE_USER="toto"
 SMB_SHARE_GRP="staff"
 SMB_WORKGROUP="WORKGROUP"
-SAMBA_VER="3.6.15p15"
-export PKG_PATH=http://openbsd.cs.fau.de/pub/OpenBSD/`uname -r`/packages/`uname -m`/
+echo "https://ftp.openbsd.org/pub/OpenBSD/" > /etc/installurl
 
-pkg_add -r samba-$SAMBA_VER
+pkg_add samba
 ln -sf /usr/local/bin/python2.7 /usr/local/bin/python
 ln -sf /usr/local/bin/python2.7-2to3 /usr/local/bin/2to3
 ln -sf /usr/local/bin/python2.7-config /usr/local/bin/python-config

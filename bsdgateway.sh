@@ -1,112 +1,107 @@
 #!/bin/sh
 echo "Deploy a network gateway based on openbsd"
-echo "Assume the box have two network interfaces: em0 and em1 configured"
-INTERNAL_IP="10.4.4.1"
-EXTERNAL_IP="10.0.2.40"
-DEFAULT_GATEWAY="10.0.2.2"
-LAN_NET="10.4.4.0/24"
-LAN_SUBNET="10.4.4"
-DHCP_RANGE_START="100"
-DHCP_RANGE_END="250"
-INT_NIC="em1"
+echo "Assume the box have 3 network interfaces: em0 em1 em2 configured"
 EXT_NIC="em0"
-FORWARD_DNS="8.8.8.8"
+INT_NIC="em1 em2"
+EXT_IP="10.0.2.40"
+DEFAULT_GATEWAY="10.0.2.2"
+
+INT_IP="192.168.56.1 10.0.0.1"
+DHCP_RANGE="100:150 200:250"
 
 echo "Updating the internal interface config!"
-echo "inet $INTERNAL_IP 255.255.255.0 NONE -inet6" > /etc/hostname.$INT_NIC
-echo "inet $EXTERNAL_IP 255.255.255.0 NONE -inet6" > /etc/hostname.$EXT_NIC
+
+echo "inet $EXT_IP 255.255.255.0 NONE -inet6" > /etc/hostname.$EXT_NIC
 echo $DEFAULT_GATEWAY > /etc/mygate
+
+c=1
+for x in $INT_NIC
+do
+    i_ip=`echo $INT_IP | awk -v var="$c" '{ print $var }'`
+    echo "inet $i_ip 255.255.255.0 NONE -inet6" > /etc/hostname.$x
+    chmod +x /etc/hostname.$x
+    c=`expr $c + 1`
+done
 
 sh /etc/netstart
 
-echo "net.inet.ip.forwarding=1
-net.inet.ip.mforwarding=0
-net.inet6.ip6.forwarding=0
-net.inet6.ip6.mforwarding=0
-kern.maxclusters=128000
-net.bpf.bufsize=1048576" >> /etc/sysctl.conf
+
+sh /etc/netstart
+
+echo "net.inet.ip.forwarding=1" >> /etc/sysctl.conf
 
 sysctl net.inet.ip.forwarding=1
-sysctl net.inet.ip.mforwarding=0
-sysctl net.inet6.ip6.forwarding=0
-sysctl net.inet6.ip6.mforwarding=0
-sysctl kern.maxclusters=128000
-sysctl net.bpf.bufsize=1048576
 
 echo "configuring the pf firewall!"
-
 echo "ext_if=\"$EXT_NIC\"
-int_if = \"$INT_NIC\"
-lan_net = \"$LAN_NET\"
-
 set skip on lo0
 match in all scrub (no-df)
-
 block log all
 block in quick from urpf-failed
+pass in quick inet proto tcp from any to any port = ssh keep state
+pass out on \$ext_if proto { tcp udp icmp } all modulate state" > /etc/pf.conf
 
-pass in quick on \$ext_if inet proto tcp from any to any port = ssh keep state
-
-pass in on \$int_if from \$lan_net
-pass out on \$int_if to \$lan_net
-
-pass out on \$ext_if proto { tcp udp icmp } all modulate state
-
-match out log on \$ext_if from \$int_if:network nat-to (\$ext_if:0)
-" > /etc/pf.conf
+for x in $INT_NIC
+do
+    echo "pass in on $x from $x:network" >> /etc/pf.conf
+    echo "pass out on $x to $x:network" >> /etc/pf.conf
+    echo "match out log on \$ext_if from $x:network nat-to (\$ext_if:0)" >> /etc/pf.conf
+done
 
 pfctl -f /etc/pf.conf
+pfctl -sr
 
-echo "Configuring unbound dns cache!"
-
-echo "# \$OpenBSD: unbound.conf,v 1.4 2014/04/02 21:43:30 millert Exp \$
-
+echo "Configuring unbound"
+echo "#
 server:
         interface: 127.0.0.1
-        interface: $INTERNAL_IP
         do-ip6: no
         verbosity: 3
         log-queries: yes
-
         access-control: 0.0.0.0/0 refuse
-        access-control: 127.0.0.0/8 allow
-        access-control: $LAN_NET allow
+        access-control: 127.0.0.0/8 allow" > /var/unbound/etc/unbound.conf
+
+for x in $INT_IP
+do
+  echo "          access-control: $x/24 allow"  >> /var/unbound/etc/unbound.conf
+  echo "          interface: $x"  >> /var/unbound/etc/unbound.conf
+done
+echo "
         access-control: ::0/0 refuse
         access-control: ::1 refuse
-
         hide-identity: yes
         hide-version: yes
+        do-not-query-localhost: no
 
-forward-zone:
-        name: "."                               
-        forward-addr: $FORWARD_DNS
-" > /var/unbound/etc/unbound.conf
+include: /var/unbound/etc/unbound.conf.d/*.conf" >> /var/unbound/etc/unbound.conf
+
 rcctl enable unbound
-rcctl start unbound
+rcctl restart unbound
 
-echo "Configuring DHCP server!"
+echo '###' > /etc/dhcpd.conf
+c=1
+for i in $INT_IP
+do
+  ip_head=`echo $i | cut -d "." -f 1,2,3`
+  drange_s=`echo $DHCP_RANGE | awk -v var="$c" '{ print $var }'| cut -d ":" -f 1`
+  drange_e=`echo $DHCP_RANGE | awk -v var="$c" '{ print $var }'| cut -d ":" -f 2`
 
-echo "shared-network LOCALHOST-BIZ {
-        default-lease-time 86400;
-        option  domain-name \"LOCALHOST.biz\";
-        option  domain-name-servers $INTERNAL_IP;
+  echo "shared-network LOCALHOST-LOCAL {
+    default-lease-time 86400;
+    option  domain-name \"LOCALHOST.LOCAL\";
+    option  domain-name-servers $i;
+    subnet $i netmask 255.255.255.0 {
+      option subnet-mask 255.255.255.0;
+      option routers $i;
+      range $ip_head.$drange_s $ip_head.$drange_e;
+    }
+}" >> /etc/dhcpd.conf
+c=`expr $c + 1`
 
-        subnet $LAN_SUBNET.0 netmask 255.255.255.0 {
-                option subnet-mask 255.255.255.0;
-                option broadcast-address $LAN_SUBNET.255;
-                option routers $INTERNAL_IP;
-                range $LAN_SUBNET.$DHCP_RANGE_START $LAN_SUBNET.$DHCP_RANGE_END;
-        }
-}
-
-" > /etc/dhcpd.conf
-
-touch /var/db/dhcpd.leases
+done
 
 echo "dhcpd_flags=\"$INT_NIC\"" >> /etc/rc.conf.local
-
 rcctl enable dhcpd
-rcctl start dhcpd
+rcctl restart dhcpd
 
 echo "nameserver 127.0.0.1" > /etc/resolv.conf
-
