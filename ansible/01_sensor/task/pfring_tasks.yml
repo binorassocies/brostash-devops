@@ -1,0 +1,110 @@
+- shell: uname -r
+  register: uname_result
+
+- name: install dependency packages
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - ca-certificates
+    - dirmngr
+    - gnupg
+    - flex
+    - bison
+    - curl
+    - build-essential
+    - make
+    - gcc
+    - linux-headers-{{uname_result.stdout}}
+
+- name: install dependency packages for Ubuntu
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - linux-headers-generic
+    - linux-image-generic
+  when: ansible_distribution == 'Ubuntu'
+
+- name: install dependency packages for Debian
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - linux-headers-amd64
+    - linux-image-amd64
+  when: ansible_distribution == 'Debian' and is_raspbian is not defined
+
+- name: install dependency packages for Raspbian
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - raspberrypi-kernel-headers
+  when: is_raspbian is defined
+
+- name: Create pfring install dir
+  file: path={{pfring_dir}} state=directory
+
+- name: Extract pfring tar gz
+  unarchive:
+    src: https://github.com/ntop/PF_RING/archive/{{pfring_ver}}.tar.gz
+    dest: /tmp
+    remote_src: yes
+
+- name: Compile pfring userland, lib, pcap, tcpdump
+  shell: |
+    cd /tmp/PF_RING-{{pfring_ver}}/userland/lib
+    ./configure --prefix={{pfring_dir}}
+    make
+    make install
+
+    cd /tmp/PF_RING-{{pfring_ver}}/userland/libpcap
+    ./configure --prefix={{pfring_dir}}
+    make
+    make install
+
+    cd /tmp/PF_RING-{{pfring_ver}}/userland/tcpdump
+    ./configure --prefix={{pfring_dir}}
+    make
+    make install
+  args:
+    executable: /bin/sh
+
+- lineinfile:
+   dest: '/etc/ld.so.conf.d/pfring.conf'
+   line: '{{pfring_dir}}/lib'
+   create: yes
+
+- name: Compile pfring kernel module
+  shell: |
+    cd /tmp/PF_RING-{{pfring_ver}}/kernel
+    make
+    make install
+  args:
+    executable: /bin/sh
+
+- lineinfile:
+   dest: '/etc/modules-load.d/pfring.conf'
+   line: 'pf_ring'
+   create: yes
+
+- name: define min_num_slots value
+  set_fact:
+    min_num_slots: 4096
+  when: min_num_slots is not defined
+
+- lineinfile:
+   dest: '/etc/modprobe.d/pf_ring.conf'
+   line: 'options pf_ring enable_tx_capture=0 transparent_mode=0 min_num_slots={{min_num_slots}}'
+   create: yes
+
+- shell: modprobe pf_ring enable_tx_capture=0 min_num_slots={{min_num_slots}}
+
+- name: ldconfig
+  shell: |
+    export LDFLAGS="-Wl,--no-as-needed -lrt"
+    export LIBS="-lrt -lnuma"
+    ldconfig
+  args:
+    executable: /bin/sh

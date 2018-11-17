@@ -1,0 +1,21 @@
+actions:
+  1:
+    action: delete_indices
+    description: "Delete selected indices"
+    options:
+      ignore_empty_list: True
+      disable_action: True
+    filters:
+    - filtertype: age
+      source: name
+      direction: older
+      unit: days
+      timestring: '%Y.%m.%d'
+{% if curator_delete_day_cn is defined %}
+      unit_count: {{curator_delete_day_cn}}
+{% else %}
+      unit_count: 4
+{% endif %}
+    - filtertype: pattern
+      kind: timestring
+      value: '%Y.%m.%d'

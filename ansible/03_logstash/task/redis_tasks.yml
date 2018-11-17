@@ -1,0 +1,32 @@
+- name: install redis server
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - redis-server
+
+- lineinfile:
+    dest: /etc/redis/redis.conf
+    line: 'bind 0.0.0.0'
+
+- lineinfile:
+    dest: /etc/redis/redis.conf
+    regexp: '^maxmemory {{redis_maxmem}}$'
+    line: 'maxmemory {{redis_maxmem}}'
+  when: redis_maxmem is defined
+
+- lineinfile:
+    dest: /etc/redis/redis.conf
+    regexp: '^maxmemory-policy allkeys-lru$'
+    line: 'maxmemory-policy allkeys-lru'
+
+- lineinfile:
+    dest: /etc/redis/redis.conf
+    regexp: '^requirepass '
+    line: 'requirepass {{redis_pwd}}'
+  when: redis_pwd is defined
+
+- name: Enable service redis
+  service:
+    name: redis-server
+    enabled: yes

@@ -1,0 +1,12 @@
+[Unit]
+Description=bro
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart={{bro_dir}}/bin/broctl start
+ExecStop={{bro_dir}}/bin/broctl stop
+Type=forking
+
+[Install]
+WantedBy=multi-user.target

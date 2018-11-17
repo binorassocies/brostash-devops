@@ -1,0 +1,99 @@
+- apt_key:
+    id: D88E42B4
+    url: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
+    state: present
+
+- name: install dependencies
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - openjdk-8-jre-headless
+    - apt-transport-https
+
+- apt_repository:
+    repo: deb https://artifacts.elastic.co/packages/6.x/apt stable main
+    state: present
+
+- name: install elasticsearch
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - elasticsearch
+
+- name: Create es data directory
+  file: path={{data_dir}} state=directory owner=elasticsearch group=elasticsearch
+  when: data_dir is defined
+
+- template:
+   src: './template/elastic/elasticsearch.yml.j2'
+   dest: '/etc/elasticsearch/elasticsearch.yml'
+
+- name: Create es-limits.conf
+  file: path=/etc/security/limits.d/20-es-limits.conf state=touch
+
+- lineinfile:
+    dest: /etc/security/limits.d/20-es-limits.conf
+    line: 'elasticsearch  -  nofile  65536'
+
+- lineinfile:
+    dest: /etc/elasticsearch/jvm.options
+    regexp: '^-Xms.*'
+    line: '-Xms{{elastic_jvm_xms}}'
+  when: elastic_jvm_xms is defined
+
+- lineinfile:
+    dest: /etc/elasticsearch/jvm.options
+    regexp: '^-Xmx.*'
+    line: '-Xmx{{elastic_jvm_xmx}}'
+  when: elastic_jvm_xmx is defined
+
+- lineinfile:
+    dest: /etc/default/elasticsearch
+    regexp: '^#MAX_LOCKED_MEMORY=.*'
+    line: 'MAX_LOCKED_MEMORY=unlimited'
+
+- name: Creates elasticsearch systemd directory
+  file: path=/etc/systemd/system/elasticsearch.service.d state=directory
+
+- name: Elasticsearch systemd conf
+  blockinfile:
+    dest: /etc/systemd/system/elasticsearch.service.d/elasticsearch.conf
+    create: yes
+    block: |
+      [Service]
+      LimitMEMLOCK=infinity
+
+- name: Reload sysctl daemon
+  command: systemctl daemon-reload
+
+- name: Enable service elasticsearch
+  service:
+    name: elasticsearch
+    enabled: yes
+
+- name: Start service elasticsearch
+  service:
+    name: elasticsearch
+    state: started
+
+- name: Pause for the elasticsearch services to start
+  pause: seconds=90
+
+- template:
+   src: './template/elastic/default-0-template.json.j2'
+   dest: '/etc/elasticsearch/default-0-template.json'
+
+- name: get default template content
+  shell: 'cat /etc/elasticsearch/default-0-template.json'
+  register: default_template_json
+
+- name: post to default template
+  uri:
+    url: http://localhost:9200/_template/default
+    method: PUT
+    body: "{{default_template_json.stdout}}"
+    body_format: "json"
+    headers:
+      Content-Type: "application/json"

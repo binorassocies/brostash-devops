@@ -1,0 +1,24 @@
+filter {
+  # Drop empty lines
+  if [message] == "" {
+    drop {}
+  }
+
+  if ![type] {
+    mutate { add_field => { "type" => "{{logstash_default_index_name}}" } }
+  } else {
+    mutate { replace => [ "type", "{{logstash_default_index_name}}-%{type}" ] }
+  }
+
+  if ![message_raw] and [message] {
+    mutate {
+      add_field => { "message_raw" => "%{message}" }
+    }
+  }
+
+  # To change the index name time suffix.
+  # mutate {
+  #   add_field => { "[@metadata][index_suffix]" => "month" }
+  # }
+
+}

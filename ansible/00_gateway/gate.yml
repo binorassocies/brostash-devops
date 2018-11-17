@@ -1,0 +1,13 @@
+---
+- hosts: all
+  gather_facts: true
+  remote_user: toor
+  become: true
+  become_method: sudo
+  become_user: root
+  vars:
+    mydom: 'binor.co'
+    unbound_root_dir: '/etc/unbound'
+  tasks:
+    - include_vars: "./var/gate_vars.yml"
+    - include: ./task/gateway_tasks.yml

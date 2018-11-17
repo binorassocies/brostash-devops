@@ -1,0 +1,37 @@
+- apt_key:
+    id: D88E42B4
+    url: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
+    state: present
+
+- name: install dependencies
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - apt-transport-https
+
+- apt_repository:
+    repo: deb https://artifacts.elastic.co/packages/6.x/apt stable main
+    state: present
+
+- name: install kibana
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - kibana
+
+- lineinfile:
+    dest: /etc/kibana/kibana.yml
+    line: 'server.host: "{{kibana_host}}"'
+  when: kibana_host is defined
+
+- lineinfile:
+    dest: /etc/kibana/kibana.yml
+    line: 'elasticsearch.requestTimeout: {{kibana_requesttimeout}}'
+  when: kibana_requesttimeout is defined
+
+- name: Enable service kibana
+  service:
+    name: kibana
+    enabled: yes

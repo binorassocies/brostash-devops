@@ -1,0 +1,20 @@
+output {
+
+  if [@metadata][index_suffix] and [@metadata][index_suffix] == "month" {
+    elasticsearch {
+      hosts => [ "{{logstash_elastic_host}}:9200" ]
+      index => "%{type}-%{+YYYY.MM}"
+    }
+  } else if [@metadata][index_suffix] and [@metadata][index_suffix] == "week" {
+    elasticsearch {
+      hosts => [ "{{logstash_elastic_host}}:9200" ]
+      index => "%{type}-%{+xxxx.ww}"
+    }
+  } else {
+    elasticsearch {
+      hosts => [ "{{logstash_elastic_host}}:9200" ]
+      index => "%{type}-%{+YYYY.MM.dd}"
+    }
+  }
+
+}

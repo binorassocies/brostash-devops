@@ -1,0 +1,20 @@
+#
+listen on 127.0.0.1
+sensor *
+constraints from "https://www.google.com"
+
+{% for nip in ntp_server %}
+servers {{nip}}
+{% endfor %}
+{% set def_nic = ansible_default_ipv4.interface %}
+{% for nic in ansible_interfaces %}
+{% set ifacedata = hostvars[inventory_hostname]['ansible_' + nic] %}
+{% if ifacedata.type == 'ether' and ifacedata.device != def_nic %}
+{% if ifacedata.ipv4.address is defined %}
+{% set ip_adr = ifacedata.ipv4.address %}
+{% elif ifacedata.ipv4 is sequence %}
+{% set ip_adr = ifacedata.ipv4[0].address %}
+{% endif %}
+listen on {{ip_adr}}
+{% endif %}
+{% endfor %}

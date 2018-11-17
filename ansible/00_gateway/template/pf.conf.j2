@@ -1,0 +1,27 @@
+### config pf ###
+{% set def_nic = ansible_default_ipv4.interface %}
+ext_if="{{def_nic}}"
+set skip on lo0
+match in all scrub (no-df)
+block log all
+block in quick from urpf-failed
+pass in inet proto { tcp udp icmp } all modulate state
+pass out inet proto { tcp udp icmp } all modulate state
+
+
+{% for nic in ansible_interfaces %}
+{% set ifacedata = hostvars[inventory_hostname]['ansible_' + nic] %}
+{% if ifacedata.type == 'ether' and ifacedata.device != def_nic %}
+{% if ifacedata.ipv4.address is defined %}
+{% set ip_adr = ifacedata.ipv4.address %}
+{% elif ifacedata.ipv4 is sequence %}
+{% set ip_adr = ifacedata.ipv4[0].address %}
+{% endif %}
+
+pass in quick on {{nic}} inet proto udp to port 123 rdr-to {{ip_adr}} port 123
+pass in quick on {{nic}} inet proto udp to port 53 rdr-to {{ip_adr}} port 53
+pass in quick on {{nic}} inet proto tcp to port 53 rdr-to {{ip_adr}} port 53
+match out on $ext_if from {{nic}}:network nat-to ($ext_if:0)
+
+{% endif %}
+{% endfor %}

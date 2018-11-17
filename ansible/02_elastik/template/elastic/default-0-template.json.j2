@@ -1,0 +1,42 @@
+{
+  "order": 0,
+  "template" : "*",
+  "settings": {
+    "index": {
+{% if num_shards is defined %}
+      "number_of_shards": "{{num_shards}}",
+{% else %}
+      "number_of_shards": "5",
+{% endif %}
+{% if num_replicas is defined %}
+      "number_of_replicas": "{{num_replicas}}",
+{% else %}
+      "number_of_replicas": "1",
+{% endif %}
+      "query": {
+        "default_field": "message"
+      }
+    }
+  },
+  "mappings": {
+    "_default_": {
+      "dynamic_templates": [
+        {
+          "string_fields": {
+            "mapping": {
+              "ignore_above": 2048,
+              "type": "keyword"
+            },
+            "match_mapping_type": "string",
+            "match": "*"
+          }
+        }
+      ],
+      "properties": {
+        "message": { "analyzer": "simple", "type": "text" },
+        "message_raw": { "index": false, "type": "text" }
+      }
+    }
+  },
+  "aliases": {}
+}

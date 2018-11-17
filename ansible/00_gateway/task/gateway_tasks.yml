@@ -1,0 +1,330 @@
+- name: define internal nic list
+  set_fact:
+    ansible_nic_list: "{% set ansible_nic_list = ansible_nic_list|default([]) + [hostvars[inventory_hostname]['ansible_' + item]['device']] %}{{ ansible_nic_list | list }}"
+  when: item != ansible_default_ipv4['interface'] and hostvars[inventory_hostname]['ansible_' + item]['type'] == "ether"
+  with_items:
+    - "{{ ansible_interfaces }}"
+
+- name: define internal ip list
+  set_fact:
+    ansible_nic_ip_list: "{% set ansible_nic_ip_list = ansible_nic_ip_list|default([]) + [hostvars[inventory_hostname]['ansible_' + item]['ipv4']['address']] %}{{ ansible_nic_ip_list | list }}"
+  when: item != ansible_default_ipv4['interface'] and hostvars[inventory_hostname]['ansible_' + item]['type'] == "ether" and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+  with_items:
+    - "{{ ansible_interfaces }}"
+
+- name: concatenate ansible nic names
+  set_fact:
+    ansible_nics: "{{ ansible_nic_list  | join(' ') }}"
+
+- name: Define apt proxy config
+  shell: echo "Acquire::http::Proxy \"{{apt_proxy}}\";" > /etc/apt/apt.conf.d/00apt-proxy
+  when: apt_proxy is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: apt-get update
+  apt:
+    update_cache: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: define mirror url
+  set_fact:
+    mirror_url: "https://cdn.openbsd.org/pub/OpenBSD"
+  when: ansible_distribution == 'OpenBSD'
+
+- name: OpenBSD define mirror url
+  lineinfile:
+   dest: /etc/installurl
+   create: yes
+   regexp: '^{{ mirror_url }}'
+   line: '{{ mirror_url }}'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: install deb packages
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - ca-certificates
+    - dirmngr
+    - gnupg
+    - ntp
+    - unbound
+    - isc-dhcp-server
+    - curl
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: install bsd packages
+  openbsd_pkg:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - gnupg-2.2.4
+    - curl
+    - sudo-1.8.22
+  when: ansible_distribution == 'OpenBSD'
+
+- name: config ntp server
+  lineinfile:
+   dest: '/etc/ntp.conf'
+   regexp: '^server\s+{{ item }}'
+   line: 'server  {{ item }}'
+  with_items:
+    - "{{ ntp_server }}"
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: config ntp listening interface
+  lineinfile:
+   dest: '/etc/ntp.conf'
+   regexp: '^restrict {{ item }} mask 255.255.255.0'
+   line: 'restrict {{ item }} mask 255.255.255.0'
+  with_items:
+    - "{{ ansible_nic_ip_list }}"
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: config ntpd options
+  lineinfile:
+   dest: '/etc/default/ntp'
+   regexp: '^NTPD_OPTS='
+   line: 'NTPD_OPTS="-g"'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: deploy ntpd.conf template
+  template:
+   src: './template/ntpd.conf.j2'
+   dest: '/etc/ntpd.conf'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: deploy ntpd_flags option
+  lineinfile:
+   dest: '/etc/rc.conf.local'
+   regexp: '^ntpd_flags '
+   line: 'ntpd_flags=-s'
+   create: yes
+  when: ansible_distribution == 'OpenBSD'
+
+- name: overwrite unbound conf dir
+  set_fact:
+    unbound_root_dir: "/var/unbound/etc"
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Clean /etc/unbound/unbound.conf.d
+  file: path={{unbound_root_dir}}/unbound.conf.d state=absent
+
+- name: Create /etc/unbound/unbound.conf.d
+  file: path={{unbound_root_dir}}/unbound.conf.d state=directory
+
+- template:
+   src: './template/unbound/unbound.conf.j2'
+   dest: '{{unbound_root_dir}}/unbound.conf'
+
+- template:
+   src: './template/unbound/unbound.forwarder.conf.j2'
+   dest: '{{unbound_root_dir}}/unbound.conf.d/99_unbound.forwarder.conf'
+
+- lineinfile:
+   dest: '/etc/dhcpcd.conf'
+   regexp: '^denyinterfaces {{ item }}'
+   line: 'denyinterfaces {{ item }}'
+   create: yes
+  with_items:
+    - "{{ ansible_nic_list }}"
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- lineinfile:
+   dest: '/etc/dhcp/dhclient.conf'
+   regexp: '^(supersede domain-name-servers) '
+   line: 'supersede domain-name-servers 127.0.0.1;'
+   create: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- lineinfile:
+   dest: '/etc/sysctl.d/10-ipforward.conf'
+   line: 'net.ipv4.ip_forward=1'
+   create: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- lineinfile:
+   dest: '/etc/dhclient.conf'
+   regexp: '^(supersede domain-name-servers) '
+   line: 'supersede domain-name-servers 127.0.0.1;'
+   create: yes
+  when: ansible_distribution == 'OpenBSD'
+
+- lineinfile:
+   dest: '/etc/sysctl.conf'
+   line: 'net.inet.ip.forwarding=1'
+   create: yes
+  when: ansible_distribution == 'OpenBSD'
+
+- template:
+   src: './template/dhcpd.conf.j2'
+   dest: '/etc/dhcp/dhcpd.conf'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- lineinfile:
+   dest: '/etc/default/isc-dhcp-server'
+   regexp: '^INTERFACESv4='
+   line: 'INTERFACESv4="{{ansible_nics}}"'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- template:
+   src: './template/dhcpd.conf.j2'
+   dest: '/etc/dhcpd.conf'
+  when: ansible_distribution == 'OpenBSD'
+
+- lineinfile:
+   dest: '/etc/rc.conf.local'
+   regexp: '^dhcpd_flags '
+   line: 'dhcpd_flags={{ansible_nics}}'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create /opt/iptables_conf
+  file: path=/opt/iptables_conf state=directory
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- template:
+   src: './template/iptables_nat.j2'
+   dest: '/opt/iptables_conf/iptables_nat'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- template:
+   src: './template/iptables_nat.j2'
+   dest: '/etc/network/if-up.d/iptables'
+   mode: 0755
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- template:
+   src: './template/pf.conf.j2'
+   dest: '/etc/pf.open.conf'
+  when: ansible_distribution == 'OpenBSD'
+
+- template:
+   src: './template/pf.conf.j2'
+   dest: '/etc/pf.conf'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Enable service ntp
+  service:
+    name: ntp
+    enabled: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Enable service unbound
+  service:
+    name: unbound
+    enabled: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Enable service isc-dhcp-server
+  service:
+    name: isc-dhcp-server
+    enabled: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: enable unbound service
+  command: rcctl enable unbound
+  when: ansible_distribution == 'OpenBSD'
+
+- name: enable dhcp service
+  command: rcctl enable dhcpd
+  when: ansible_distribution == 'OpenBSD'
+
+- name: install samba lighttpd
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - samba
+    - lighttpd
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: install bsd packages
+  openbsd_pkg:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - samba
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create /nfs/pub
+  file: path=/nfs/pub state=directory mode=0777
+  when: ansible_distribution == 'OpenBSD'
+
+- lineinfile:
+   dest: '/etc/exports'
+   create: true
+   line: '/nfs/pub -alldirs -ro'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: enable nfs services
+  shell: 'rcctl enable portmap mountd nfsd'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create /var/www/htdocs/pub/
+  file: path=/var/www/htdocs/pub state=directory mode=0755
+  when: ansible_distribution == 'OpenBSD'
+
+- template:
+   src: './template/index.html.j2'
+   dest: '/var/www/htdocs/index.html'
+  when: ansible_distribution == 'OpenBSD'
+
+- template:
+   src: './template/httpd.conf.j2'
+   dest: '/etc/httpd.conf'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: enable httpd service
+  command: rcctl enable httpd
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create /share/pub
+  file: path=/share/pub state=directory mode=0777
+
+- name: Samba share conf
+  blockinfile:
+    dest: /etc/samba/smb.conf
+    block: |
+      [pub]
+         comment = Public file space
+         path = /share/pub
+         read only = no
+         public = yes
+         force user = nobody
+         max connections = 10
+         create mask = 0775
+
+- name: enable samba services
+  shell: 'rcctl enable smbd nmbd'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Enable service smbd
+  service:
+    name: smbd
+    enabled: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Enable service nmbd
+  service:
+    name: nmbd
+    enabled: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Create /var/www/html/pub
+  file: path=/var/www/html/pub state=directory mode=0755
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- template:
+   src: './template/index.html.j2'
+   dest: '/var/www/html/index.html'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- template:
+   src: './template/lighttpd.conf.j2'
+   dest: '/etc/lighttpd/lighttpd.conf'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Enable service lighttpd
+  service:
+    name: lighttpd
+    enabled: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'

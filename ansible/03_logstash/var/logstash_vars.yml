@@ -1,0 +1,7 @@
+logstash_jvm_xms: '256m'
+logstash_jvm_xmx: '256m'
+logstash_beats_port: 5044
+logstash_default_index_name: 'logstash'
+logstash_elastic_host: '127.0.0.1'
+#logstash_pipeline_workers: 2
+#logstash_pipeline_batch_size: 100

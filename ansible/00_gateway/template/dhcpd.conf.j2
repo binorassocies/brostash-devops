@@ -1,0 +1,27 @@
+{% set def_nic = ansible_default_ipv4.interface %}
+{% for nic in ansible_interfaces %}
+{% set ifacedata = hostvars[inventory_hostname]['ansible_' + nic] %}
+{% if ifacedata.type == 'ether' and ifacedata.device != def_nic %}
+
+{% if ifacedata.ipv4.address is defined %}
+{% set ip_adr = ifacedata.ipv4.address %}
+{% set ip_net = ifacedata.ipv4.network %}
+{% elif ifacedata.ipv4 is sequence %}
+{% set ip_adr = ifacedata.ipv4[0].address %}
+{% set ip_net = ifacedata.ipv4[0].network %}
+{% endif %}
+
+shared-network {{mydom}} {
+  default-lease-time 86400;
+  option domain-name "{{mydom}}";
+  option domain-name-servers {{ip_adr}};
+  subnet {{ip_net}} netmask 255.255.255.0 {
+    option subnet-mask 255.255.255.0;
+    option routers {{ip_adr}};
+    option domain-name-servers {{ip_adr}};
+{% set ip_head = ip_adr.split(".")[0] + '.' + ip_adr.split(".")[1]+ '.' + ip_adr.split(".")[2] %}
+    range {{ip_head}}.200 {{ip_head}}.220;
+  }
+}
+{% endif %}
+{% endfor %}

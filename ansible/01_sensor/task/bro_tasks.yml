@@ -1,0 +1,197 @@
+- name: install dependency packages
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - ca-certificates
+    - dirmngr
+    - gnupg
+    - curl
+    - build-essential
+    - make
+    - gcc
+    - g++
+    - flex
+    - bison
+    - libpcap-dev
+    - python-dev
+    - libgoogle-perftools-dev
+    - cmake
+    - libjemalloc-dev
+    - swig
+    - zlib1g-dev
+    - libssl1.0-dev
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: define mirror url
+  set_fact:
+    mirror_url: "https://cdn.openbsd.org/pub/OpenBSD"
+  when: ansible_distribution == 'OpenBSD'
+
+- name: overwrite bro install dir
+  set_fact:
+    bro_dir: "/usr/local/bro"
+  when: ansible_distribution == 'OpenBSD'
+
+- lineinfile:
+   dest: /etc/installurl
+   create: yes
+   regexp: '^{{ mirror_url }}'
+   line: '{{ mirror_url }}'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: install packages
+  openbsd_pkg:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - curl
+    - gnupg-2.2.4
+    - gcc
+    - python-2.7.14p1
+    - gtar-1.29
+    - g++
+    - cmake
+    - bison
+    - libbind
+    - bash
+    - swig
+    - findutils
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create python sym links
+  file: src=/usr/local/bin/python2.7 path=/usr/local/bin/python state=link
+  when: ansible_distribution == 'OpenBSD'
+- name: Create python sym links
+  file: src=/usr/local/bin/python2.7-2to3 path=/usr/local/bin/2to3 state=link
+  when: ansible_distribution == 'OpenBSD'
+- name: Create python sym links
+  file: src=/usr/local/bin/python2.7-config path=/usr/local/bin/python-config state=link
+  when: ansible_distribution == 'OpenBSD'
+- name: Create python sym links
+  file: src=/usr/local/bin/pydoc2.7 path=/usr/local/bin/pydoc state=link
+  when: ansible_distribution == 'OpenBSD'
+- name: Create gpg sym links
+  file: src=/usr/local/bin/gpg2 path=/usr/bin/gpg state=link
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create bro install dir
+  file: path={{bro_dir}} state=directory
+
+- name: Download bro source
+  get_url:
+    url: https://www.bro.org/downloads/bro-{{bro_ver}}.tar.gz
+    dest: /tmp/
+
+- name: Download bro signature
+  get_url:
+    url: https://www.bro.org/downloads/bro-{{bro_ver}}.tar.gz.asc
+    dest: /tmp/
+
+- name: Download bro pub key
+  get_url:
+    url: https://pgp.mit.edu/pks/lookup?op=get&search=0x33F15EAEF8CB8019
+    dest: /tmp/bro.key.asc
+
+- shell: '/usr/bin/gpg --import /tmp/bro.key.asc'
+- shell: '/usr/bin/gpg --verify /tmp/bro-{{bro_ver}}.tar.gz.asc /tmp/bro-{{bro_ver}}.tar.gz'
+  register: gpg_verify_result
+
+- debug:
+    var: gpg_verify_result.stdout_lines
+
+- debug:
+    var: gpg_verify_result.stderr_lines
+
+- name: Extract bro archive
+  unarchive:
+    src: /tmp/bro-{{bro_ver}}.tar.gz
+    dest: /tmp
+    remote_src: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Extract bro archive
+  unarchive:
+    src: /tmp/bro-{{bro_ver}}.tar.gz
+    dest: /home
+    remote_src: yes
+  when: ansible_distribution == 'OpenBSD'
+
+- name: configure bro
+  shell: |
+    cd /tmp/bro-{{bro_ver}}
+    ./configure --prefix={{bro_dir}} --with-pcap={{pfring_dir}}
+  args:
+    executable: /bin/sh
+  when: pfring_dir is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: configure bro without pfring
+  shell: |
+    cd /tmp/bro-{{bro_ver}}
+    ./configure --prefix={{bro_dir}}
+  args:
+    executable: /bin/sh
+  when: pfring_dir is not defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: configure bro
+  shell: |
+    cd /home/bro-{{bro_ver}}
+    ./configure --prefix={{bro_dir}}
+  args:
+    executable: /bin/sh
+  environment:
+    CC: "egcc"
+    CXX: "eg++"
+    LDFLAGS: "-L/usr/local/lib/libbind -lbind -Wl,-rpath /usr/local/lib/libbind"
+    BRO_DIR: "{{bro_dir}}"
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Compile and install bro
+  shell: |
+    cd /tmp/bro-{{bro_ver}}
+    make
+    make install
+  args:
+    executable: /bin/sh
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Compile and install bro
+  shell: |
+    cd /home/bro-{{bro_ver}}
+    make
+    make install
+  args:
+    executable: /bin/sh
+  environment:
+    CC: "egcc"
+    CXX: "eg++"
+    LDFLAGS: "-L/usr/local/lib/libbind -lbind -Wl,-rpath /usr/local/lib/libbind"
+    BRO_DIR: "{{bro_dir}}"
+  when: ansible_distribution == 'OpenBSD'
+
+- lineinfile:
+   dest: '{{bro_dir}}/share/bro/site/local.bro'
+   regexp: '^redef ignore_checksums = T;'
+   line: 'redef ignore_checksums = T;'
+
+- template:
+   src: './template/bro/node.cfg.j2'
+   dest: '{{bro_dir}}/etc/node.cfg'
+
+- template:
+   src: './template/bro/bro.service.j2'
+   dest: '/etc/systemd/system/bro.service'
+   mode: 0755
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- lineinfile:
+   dest: '/etc/crontab'
+   line: '0-59/5 * * * * root {{bro_dir}}/bin/broctl cron'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- lineinfile:
+   dest: '/var/cron/tabs/root'
+   line: '0-59/5 * * * * {{bro_dir}}/bin/broctl cron'
+  when: ansible_distribution == 'OpenBSD'
+
+- shell: '{{bro_dir}}/bin/broctl deploy'

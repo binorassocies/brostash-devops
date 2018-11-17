@@ -1,0 +1,10 @@
+server "default" {
+  listen on * port 80
+  location match "/pub/(.*)" {
+    directory auto index
+  }
+}
+
+types {
+       include "/usr/share/misc/mime.types"
+}

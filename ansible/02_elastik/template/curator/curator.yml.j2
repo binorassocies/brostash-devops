@@ -1,0 +1,12 @@
+client:
+  hosts:
+{% if curator_elastic_host is defined %}
+    - {{curator_elastic_host}}
+{% else %}
+    - 127.0.0.1
+{% endif %}
+{% if curator_elastic_port is defined %}
+  port: {{curator_elastic_port}}
+{% else %}
+  port: 9200
+{% endif %}

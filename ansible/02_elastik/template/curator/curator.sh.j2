@@ -1,0 +1,5 @@
+{% if curator_dir is defined %}
+/usr/local/bin/curator --config {{curator_dir}}/curator.yml {{curator_dir}}/action_delete.yml
+{% else %}
+/usr/local/bin/curator --config /opt/curator/curator.yml /opt/curator/action_delete.yml
+{% endif %}

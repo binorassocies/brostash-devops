@@ -1,0 +1,33 @@
+- name: install python-pip
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - python-pip
+
+- pip:
+    name: elasticsearch-curator
+
+- name: Define curator dir name if not set
+  set_fact:
+    curator_dir: "/opt/curator"
+  when: curator_dir is not defined
+
+- name: Create curator jobs directory
+  file: path={{curator_dir}} state=directory
+
+- template:
+   src: './template/curator/action_delete.yml.j2'
+   dest: '{{curator_dir}}/action_delete.yml'
+
+- template:
+   src: './template/curator/curator.yml.j2'
+   dest: '{{curator_dir}}/curator.yml'
+
+- template:
+   src: './template/curator/curator.sh.j2'
+   dest: '{{curator_dir}}/curator.sh'
+
+- lineinfile:
+   dest: '/etc/crontab'
+   line: '5 */1 * * * root sh {{curator_dir}}/curator.sh > /tmp/curator.tmp'

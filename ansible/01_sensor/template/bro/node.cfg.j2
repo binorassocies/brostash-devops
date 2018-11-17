@@ -1,0 +1,18 @@
+[manager]
+type=manager
+host=localhost
+#
+[proxy-1]
+type=proxy
+host=localhost
+
+{% for nic in ansible_interfaces %}
+{% set ifacedata = hostvars[inventory_hostname]['ansible_' + nic] %}
+{% if ifacedata.type == 'ether' %}
+#
+[worker-{{nic}}]
+type=worker
+host=localhost
+interface={{nic}}
+{% endif %}
+{% endfor %}

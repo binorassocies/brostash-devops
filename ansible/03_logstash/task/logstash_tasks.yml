@@ -1,0 +1,124 @@
+- apt_key:
+    id: D88E42B4
+    url: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
+    state: present
+
+- name: install dependencies
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - openjdk-8-jre-headless
+    - apt-transport-https
+
+- apt_repository:
+    repo: deb https://artifacts.elastic.co/packages/6.x/apt stable main
+    state: present
+
+- name: install logstash
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - logstash
+
+- name: Create logstash patterns directory
+  file: path=/etc/logstash/patterns state=directory
+
+- name: Create logstash vendor directory
+  file: path=/etc/logstash/vendors state=directory
+
+- lineinfile:
+    dest: /etc/logstash/jvm.options
+    regexp: '^-Xms.*'
+    line: '-Xms{{logstash_jvm_xms}}'
+  when: logstash_jvm_xms is defined
+
+- lineinfile:
+    dest: /etc/logstash/jvm.options
+    regexp: '^-Xmx.*'
+    line: '-Xmx{{logstash_jvm_xmx}}'
+  when: logstash_jvm_xmx is defined
+
+- lineinfile:
+    dest: /etc/logstash/logstash.yml
+    regexp: '^pipeline.workers: {{logstash_pipeline_workers}}$'
+    line: 'pipeline.workers: {{logstash_pipeline_workers}}'
+  when: logstash_pipeline_workers is defined
+
+- lineinfile:
+    dest: /etc/logstash/logstash.yml
+    regexp: '^pipeline.batch.size: {{logstash_pipeline_batch_size}}$'
+    line: 'pipeline.batch.size: {{logstash_pipeline_batch_size}}'
+  when: logstash_pipeline_batch_size is defined
+
+- name: Enable service logstash
+  service:
+    name: logstash
+    enabled: yes
+
+- name: Download public suffix db
+  get_url:
+    url: https://publicsuffix.org/list/public_suffix_list.dat
+    dest: /tmp/public_suffix.dat
+
+- name: Copying public suffix db to logstash config
+  copy:
+    src: /tmp/public_suffix.dat
+    dest: /etc/logstash/vendors/
+    remote_src: yes
+
+- name: Download geoip city db
+  get_url:
+    url: https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz
+    dest: /tmp/GeoLite2-City.tar.gz
+
+- name: Download geoip asn db
+  get_url:
+    url: http://geolite.maxmind.com/download/geoip/database/GeoLite2-ASN.tar.gz
+    dest: /tmp/GeoLite2-ASN.tar.gz
+
+- name: Extract geoip city db
+  unarchive:
+    src: /tmp/GeoLite2-City.tar.gz
+    dest: /tmp
+    remote_src: yes
+
+- name: Extract geoip asn db
+  unarchive:
+    src: /tmp/GeoLite2-ASN.tar.gz
+    dest: /tmp
+    remote_src: yes
+
+- find:
+    paths: '/tmp'
+    file_type: file
+    patterns: '*.mmdb'
+    recurse: yes
+  register: file_paths
+
+- debug:
+    var: file_paths
+
+- name: Copying geoip db files to logstash config
+  copy:
+    src: "{{ item.path }}"
+    dest: /etc/logstash/vendors/
+    remote_src: yes
+  with_items:
+    - "{{file_paths.files}}"
+
+- template:
+   src: './template/01-input-01-beats.conf.j2'
+   dest: '/etc/logstash/conf.d/01-input-01-beats.conf'
+
+- template:
+   src: './template/02-filter-00-header.conf.j2'
+   dest: '/etc/logstash/conf.d/02-filter-00-header.conf'
+
+- template:
+   src: './template/03-output-01-elastic.conf.j2'
+   dest: '/etc/logstash/conf.d/03-output-01-elastic.conf'
+
+- name: Check Configuration
+  command: /usr/share/logstash/bin/logstash -f /etc/logstash/conf.d/ --config.test_and_exit

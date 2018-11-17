@@ -1,0 +1,34 @@
+#
+server:
+      interface: 127.0.0.1
+      do-ip6: no
+      verbosity: 1
+      log-queries: no
+      access-control: 0.0.0.0/0 refuse
+      access-control: 127.0.0.0/8 allow
+      access-control: ::0/0 refuse
+      access-control: ::1 refuse
+      hide-identity: yes
+      hide-version: yes
+      do-tcp: yes
+      qname-minimisation: yes
+      rrset-roundrobin: yes
+      do-not-query-localhost: no
+      module-config: "iterator"
+
+{% set def_nic = ansible_default_ipv4.interface %}
+{% for nic in ansible_interfaces %}
+{% set ifacedata = hostvars[inventory_hostname]['ansible_' + nic] %}
+{% if ifacedata.type == 'ether' and ifacedata.device != def_nic %}
+{% if ifacedata.ipv4.address is defined %}
+{% set ip_adr = ifacedata.ipv4.address %}
+{% elif ifacedata.ipv4 is sequence %}
+{% set ip_adr = ifacedata.ipv4[0].address %}
+{% endif %}
+server:
+      access-control: {{ip_adr}}/24 allow
+      interface: {{ip_adr}}
+{% endif %}
+{% endfor %}
+
+include: {{unbound_root_dir}}/unbound.conf.d/*.conf

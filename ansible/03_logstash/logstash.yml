@@ -1,0 +1,10 @@
+---
+- hosts: all
+  gather_facts: true
+  remote_user: packer
+  become: true
+  become_method: sudo
+  become_user: root
+  tasks:
+    - include_vars: "./var/logstash_vars.yml"
+    - include: ./task/logstash_tasks.yml
