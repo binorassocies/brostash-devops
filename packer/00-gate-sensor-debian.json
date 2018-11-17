@@ -1,0 +1,125 @@
+{
+  "_comment": "Build with `packer build --force 00-gate-sensor-debian.json`",
+  "variables": {
+    "mirror": "http://cdimage.debian.org/cdimage/release",
+    "mirror_directory": "9.5.0/amd64/iso-cd",
+    "iso_name": "debian-9.5.0-amd64-netinst.iso",
+    "preseed_path": "preseed_minimal.cfg",
+    "disk_size": "20480",
+    "memory": "1024",
+    "cpus": "2",
+    "iso_checksum": "efe75000c066506326c74a97257163b3050d656a5be8708a6826b0f810208d0a58f413c446de09919c580de8fac6d0a47774534725dd9fdd00c94859e370f373",
+    "iso_checksum_type": "sha512",
+    "headless": "true",
+    "virtualbox_guest_os_type": "Debian_64",
+    "root_password": "toor",
+    "ssh_user": "toor",
+    "ssh_password": "toor",
+    "system_hostname": "delta",
+    "cpu_cap_exec": "70",
+    "ssh_port_forward": "21022",
+    "vm_name": "delta"
+  },
+  "builders": [
+    {
+      "type": "virtualbox-iso",
+      "boot_command": [
+        "<esc><wait>",
+        "install <wait>",
+        "preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/{{user `preseed_path`}} <wait>",
+        "debian-installer=en_US.UTF-8 <wait>",
+        "auto <wait>",
+        "locale=en_US.UTF-8 <wait>",
+        "kbd-chooser/method=us <wait>",
+        "keyboard-configuration/xkb-keymap=us <wait>",
+        "netcfg/choose_interface=auto <wait>",
+        "netcfg/get_hostname={{ .Name }} <wait>",
+        "netcfg/get_domain=dom.local <wait>",
+        "fb=false <wait>",
+        "debconf/frontend=noninteractive <wait>",
+        "console-setup/ask_detect=false <wait>",
+        "console-keymaps-at/keymap=us <wait>",
+        "grub-installer/bootdev=/dev/sda <wait>",
+        "<enter><wait>"
+      ],
+      "boot_wait": "10s",
+
+      "disk_size": "{{user `disk_size`}}",
+      "guest_os_type": "{{user `virtualbox_guest_os_type`}}",
+      "headless": "{{user `headless`}}",
+      "http_directory": "http",
+      "output_directory": "build/debian-9.x-{{user `vm_name`}}",
+      "iso_checksum_type": "{{user `iso_checksum_type`}}",
+      "iso_checksum": "{{user `iso_checksum`}}",
+      "iso_url": "{{user `mirror`}}/{{user `mirror_directory`}}/{{user `iso_name`}}",
+      "ssh_username": "{{user `ssh_user`}}",
+      "ssh_password": "{{user `ssh_password`}}",
+      "ssh_port": 22,
+      "ssh_wait_timeout": "10000s",
+      "vboxmanage": [
+        [ "modifyvm", "{{.Name}}", "--memory", "{{user `memory`}}" ],
+        [ "modifyvm", "{{.Name}}", "--cpus", "{{user `cpus`}}" ],
+        [ "modifyvm", "{{.Name}}", "--vrde", "off" ],
+        [ "modifyvm", "{{.Name}}", "--nic2", "intnet" ],
+        [ "modifyvm", "{{.Name}}", "--nic3", "intnet" ],
+        [ "modifyvm", "{{.Name}}", "--intnet2", "net_prv2" ],
+        [ "modifyvm", "{{.Name}}", "--intnet3", "net_prv22" ],
+        [ "modifyvm", "{{.Name}}", "--audio", "none" ],
+        [ "modifyvm", "{{.Name}}", "--cpuexecutioncap", "70" ],
+        [ "modifyvm", "{{.Name}}", "--natpf1", "guest_ssh,tcp,127.0.0.1,{{user `ssh_port_forward`}},,22" ],
+        [ "modifyvm", "{{.Name}}", "--vram", "12"]
+      ],
+      "shutdown_command": "echo '{{user `ssh_password`}}' | sudo -S /sbin/shutdown -hP now",
+      "virtualbox_version_file": ".vbox_version",
+      "vm_name": "{{user `vm_name`}}",
+      "guest_additions_mode": "disable"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "echo '{{user `ssh_user`}} ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/99_{{user `ssh_user`}}",
+        "chmod 440 /etc/sudoers.d/99_{{user `ssh_user`}}",
+        "apt-get update",
+        "apt-get -y install ansible"
+      ],
+      "execute_command": "echo '{{ user `ssh_password` }}' | {{.Vars}} sudo -S -E '{{.Path}}'"
+    },
+    {
+      "type": "shell",
+      "scripts": [
+        "./utils/net_setup.sh"
+      ],
+      "execute_command": "echo '{{ user `ssh_password` }}' | {{.Vars}} sudo -S -E '{{.Path}}'"
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "../ansible/00_gateway/gate.yml",
+      "playbook_dir": "../ansible/00_gateway"
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "../ansible/01_sensor/pfring.yml",
+      "playbook_dir": "../ansible/01_sensor"
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "../ansible/01_sensor/bro.yml",
+      "playbook_dir": "../ansible/01_sensor"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "apt-get -y purge ansible",
+        "apt-get -y autoremove",
+        "apt-get -y clean",
+        "rm -f /var/log/*.log",
+        "rm -Rf /home/packer/.ansible",
+        "rm -Rf /tmp/*",
+        "sync"
+      ],
+      "execute_command": "echo '{{ user `ssh_password` }}' | {{.Vars}} sudo -S -E '{{.Path}}'"
+    }
+  ]
+}

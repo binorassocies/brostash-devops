@@ -1,0 +1,108 @@
+{
+  "_comment": "Build with `packer build --force 00-gate-sensor-openbsd.json`",
+  "variables": {
+    "mirror": "http://cdn.openbsd.org",
+    "disk_size": "20480",
+    "memory": "1024",
+    "cpus": "1",
+    "iso_checksum": "ee775405dd7926975befbc3fef23de8c4b5a726c3b5075e4848fcd3a2a712ea8",
+    "iso_checksum_type": "sha256",
+    "headless": "true",
+    "virtualbox_guest_os_type": "OpenBSD_64",
+    "root_password": "toor",
+    "ssh_user": "toor",
+    "ssh_password": "toor",
+    "system_hostname": "beta",
+    "cpu_cap_exec": "70",
+    "ssh_port_forward": "20022",
+    "vm_name": "beta"
+  },
+  "builders": [
+    {
+      "type": "virtualbox-iso",
+      "boot_command": [
+        "S<enter>",
+        "cat <<EOF >>install.conf<enter>",
+        "System hostname = {{user `system_hostname`}}<enter>",
+        "Password for root = {{user `root_password`}}<enter>",
+        "Setup a user = {{user `ssh_user`}}<enter>",
+        "Password for user = {{user `ssh_password`}}<enter>",
+        "Allow root ssh login = yes<enter>",
+        "What timezone are you in = UTC<enter>",
+        "Location of sets = cd<enter>",
+        "Set name(s) = -game*.tgz<enter>",
+        "Directory does not contain SHA256.sig. Continue without verification = yes<enter>",
+        "EOF<enter>",
+        "install -af install.conf && reboot<enter>"
+      ],
+      "boot_wait": "30s",
+      "disk_size": "{{user `disk_size`}}",
+      "guest_os_type": "{{user `virtualbox_guest_os_type`}}",
+      "headless": "{{user `headless`}}",
+      "iso_checksum": "{{user `iso_checksum`}}",
+      "iso_checksum_type": "{{user `iso_checksum_type`}}",
+      "iso_url": "{{user `mirror`}}/pub/OpenBSD/6.3/amd64/install63.iso",
+      "output_directory": "build/openbsd-6.3-{{user `vm_name`}}",
+      "shutdown_command": "/sbin/halt -p",
+      "ssh_username": "root",
+      "ssh_password": "{{user `root_password`}}",
+      "ssh_port": 22,
+      "ssh_wait_timeout": "10000s",
+      "vboxmanage": [
+        [ "modifyvm", "{{.Name}}", "--memory", "{{user `memory`}}" ],
+        [ "modifyvm", "{{.Name}}", "--cpus", "{{user `cpus`}}" ],
+        [ "modifyvm", "{{.Name}}", "--vrde", "off" ],
+        [ "modifyvm", "{{.Name}}", "--nic2", "intnet" ],
+        [ "modifyvm", "{{.Name}}", "--nic3", "intnet" ],
+        [ "modifyvm", "{{.Name}}", "--intnet2", "net_prv1" ],
+        [ "modifyvm", "{{.Name}}", "--intnet3", "net_prv11" ],
+        [ "modifyvm", "{{.Name}}", "--audio", "none" ],
+        [ "modifyvm", "{{.Name}}", "--natpf1", "guest_ssh,tcp,127.0.0.1,{{user `ssh_port_forward`}},,22" ],
+        [ "modifyvm", "{{.Name}}", "--vram", "12"]
+      ],
+      "virtualbox_version_file": ".vbox_version",
+      "guest_additions_mode": "disable",
+      "vm_name": "{{user `vm_name`}}"
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "shell",
+      "inline": [
+        "export PKG_PATH=\"https://cdn.openbsd.org/pub/OpenBSD/$(uname -r)/packages/$(arch -s)/\"",
+        "pkg_add ansible python27 sudo-1.8.22",
+        "ln -sf /usr/local/bin/python2.7 /usr/local/bin/python",
+        "ln -sf /usr/local/bin/python2.7 /usr/bin/python",
+        "ln -sf /usr/local/bin/python2.7-config /usr/local/bin/python-config",
+        "ln -sf /usr/local/bin/python2.7-config /usr/bin/python-config",
+        "echo '{{user `ssh_user`}} ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers"
+      ],
+      "execute_command": "export {{.Vars}} && cat {{.Path}} | su -m"
+    },
+    {
+      "type": "shell",
+      "scripts": [
+        "./utils/net_setup.sh"
+      ],
+      "execute_command": "export {{.Vars}} && cat {{.Path}} | su -m"
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "../ansible/00_gateway/gate.yml",
+      "playbook_dir": "../ansible/00_gateway"
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "../ansible/01_sensor/bro.yml",
+      "playbook_dir": "../ansible/01_sensor"
+    },
+    {
+      "type": "shell",
+      "inline": [
+        "pkg_delete ansible",
+        "rm -Rf /root/.ansible"
+      ],
+      "execute_command": "export {{.Vars}} && cat {{.Path}} | su -m"
+    }
+  ]
+}
