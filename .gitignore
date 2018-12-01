@@ -3,5 +3,5 @@
 ._*
 *.log
 */test/*
-*cache*
+*cache
 *build
