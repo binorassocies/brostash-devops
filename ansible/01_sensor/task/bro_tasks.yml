@@ -88,20 +88,25 @@
     url: https://www.bro.org/downloads/bro-{{bro_ver}}.tar.gz.asc
     dest: /tmp/
 
-- name: Download bro pub key
-  get_url:
-    url: https://pgp.mit.edu/pks/lookup?op=get&search=0x33F15EAEF8CB8019
+#- name: Download bro pub key
+#  get_url:
+#    url: https://pgp.mit.edu/pks/lookup?op=get&search=0x33F15EAEF8CB8019
+#    dest: /tmp/bro.key.asc
+
+- name: bro pub key
+  copy:
+    src: ./data/bro.key.asc
     dest: /tmp/bro.key.asc
 
-- shell: '/usr/bin/gpg --import /tmp/bro.key.asc'
-- shell: '/usr/bin/gpg --verify /tmp/bro-{{bro_ver}}.tar.gz.asc /tmp/bro-{{bro_ver}}.tar.gz'
+- shell: '/usr/bin/gpg --no-tty --import /tmp/bro.key.asc'
+- shell: '/usr/bin/gpg --no-tty --verify /tmp/bro-{{bro_ver}}.tar.gz.asc /tmp/bro-{{bro_ver}}.tar.gz'
   register: gpg_verify_result
 
 - debug:
     var: gpg_verify_result.stdout_lines
 
 - debug:
-    var: gpg_verify_result.stderr_lines
+    var: gpg_verify_result
 
 - name: Extract bro archive
   unarchive:
