@@ -7,7 +7,7 @@
     "preseed_path": "preseed_minimal.cfg",
     "disk_size": "20480",
     "memory": "1024",
-    "cpus": "2",
+    "cpus": "1",
     "iso_checksum": "fcd77acbd46f33e0a266faf284acc1179ab0a3719e4b8abebac555307aa978aa242d7052c8d41e1a5fc6d1b30bc6ca6d62269e71526b71c9d5199b13339f0e25",
     "iso_checksum_type": "sha512",
     "headless": "true",
@@ -16,7 +16,6 @@
     "ssh_user": "toor",
     "ssh_password": "toor",
     "system_hostname": "delta",
-    "cpu_cap_exec": "70",
     "ssh_port_forward": "21022",
     "vm_name": "delta"
   },
