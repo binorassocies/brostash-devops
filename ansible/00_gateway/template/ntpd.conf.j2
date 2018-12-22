@@ -3,6 +3,7 @@ listen on 127.0.0.1
 sensor *
 constraints from "https://www.google.com"
 
+servers pool.ntp.org
 {% for nip in ntp_server %}
 servers {{nip}}
 {% endfor %}
