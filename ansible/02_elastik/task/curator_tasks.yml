@@ -4,6 +4,23 @@
   vars:
     packages:
     - python-pip
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: install py-pip
+  openbsd_pkg:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - py-pip
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create python sym links
+  file: src=/usr/local/bin/pip2.7 path=/usr/local/bin/pip state=link
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create python sym links
+  file: src=/usr/local/bin/pip2.7 path=/usr/bin/pip state=link
+  when: ansible_distribution == 'OpenBSD'
 
 - pip:
     name: elasticsearch-curator
@@ -31,3 +48,9 @@
 - lineinfile:
    dest: '/etc/crontab'
    line: '5 */1 * * * root sh {{curator_dir}}/curator.sh > /tmp/curator.tmp'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- lineinfile:
+   dest: '/var/cron/tabs/root'
+   line: '5 */1 * * * root sh {{curator_dir}}/curator.sh > /tmp/curator.tmp'
+  when: ansible_distribution == 'OpenBSD'

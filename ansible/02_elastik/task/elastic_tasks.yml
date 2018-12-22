@@ -1,8 +1,3 @@
-- apt_key:
-    id: D88E42B4
-    url: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
-    state: present
-
 - name: install dependencies
   apt:
     name: "{{ packages }}"
@@ -10,10 +5,39 @@
     packages:
     - openjdk-8-jre-headless
     - apt-transport-https
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: define mirror url
+  set_fact:
+    mirror_url: "https://cdn.openbsd.org/pub/OpenBSD"
+  when: ansible_distribution == 'OpenBSD'
+
+- name: OpenBSD define mirror url
+  lineinfile:
+   dest: /etc/installurl
+   create: yes
+   regexp: '^{{ mirror_url }}'
+   line: '{{ mirror_url }}'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: install bsd base packages
+  openbsd_pkg:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - curl
+  when: ansible_distribution == 'OpenBSD'
+
+- apt_key:
+    id: D88E42B4
+    url: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
+    state: present
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and elastic_no_repo is not defined
 
 - apt_repository:
     repo: deb https://artifacts.elastic.co/packages/6.x/apt stable main
     state: present
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and elastic_no_repo is not defined
 
 - name: install elasticsearch
   apt:
@@ -21,10 +45,35 @@
   vars:
     packages:
     - elasticsearch
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and elastic_no_repo is not defined
+
+- name: Download elasticsearch deb
+  get_url:
+    url: https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{elastic_ver}}.deb
+    dest: /tmp/
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and elastic_no_repo is defined
+
+- name: install local elasticsearch package
+  apt:
+    deb: /tmp/elasticsearch-{{elastic_ver}}.deb
+    state: present
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and elastic_no_repo is defined
+
+- name: install bsd elasticsearch packages
+  openbsd_pkg:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - elasticsearch
+  when: ansible_distribution == 'OpenBSD'
 
 - name: Create es data directory
   file: path={{data_dir}} state=directory owner=elasticsearch group=elasticsearch
-  when: data_dir is defined
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and data_dir is defined
+
+- name: Create es data directory
+  file: path={{data_dir}} state=directory owner=_elasticsearch group=_elasticsearch
+  when: ansible_distribution == 'OpenBSD' and data_dir is defined
 
 - template:
    src: './template/elastic/elasticsearch.yml.j2'
@@ -32,10 +81,36 @@
 
 - name: Create es-limits.conf
   file: path=/etc/security/limits.d/20-es-limits.conf state=touch
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
 - lineinfile:
     dest: /etc/security/limits.d/20-es-limits.conf
     line: 'elasticsearch  -  nofile  65536'
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- lineinfile:
+   dest: '/etc/sysctl.conf'
+   line: 'kern.maxfiles=65536'
+   create: yes
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Increase kernel maxfiles limit
+  command: sysctl kern.maxfiles=65536
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Openbsd increse open file limit for elastic
+  blockinfile:
+    dest: /etc/login.conf
+    create: yes
+    block: |
+      elasticsearch:\
+              :openfiles=65536:\
+              :tc=daemon:
+  when: ansible_distribution == 'OpenBSD'
+
+- name: reload login.conf
+  command: cap_mkdb /etc/login.conf
+  when: ansible_distribution == 'OpenBSD'
 
 - lineinfile:
     dest: /etc/elasticsearch/jvm.options
@@ -53,9 +128,11 @@
     dest: /etc/default/elasticsearch
     regexp: '^#MAX_LOCKED_MEMORY=.*'
     line: 'MAX_LOCKED_MEMORY=unlimited'
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
 - name: Creates elasticsearch systemd directory
   file: path=/etc/systemd/system/elasticsearch.service.d state=directory
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
 - name: Elasticsearch systemd conf
   blockinfile:
@@ -64,19 +141,31 @@
     block: |
       [Service]
       LimitMEMLOCK=infinity
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
 - name: Reload sysctl daemon
   command: systemctl daemon-reload
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
 - name: Enable service elasticsearch
   service:
     name: elasticsearch
     enabled: yes
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Enable service elasticsearch
+  command: rcctl enable elasticsearch
+  when: ansible_distribution == 'OpenBSD'
 
 - name: Start service elasticsearch
   service:
     name: elasticsearch
     state: started
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Start service elasticsearch
+  command: rcctl start elasticsearch
+  when: ansible_distribution == 'OpenBSD'
 
 - name: Pause for the elasticsearch services to start
   pause: seconds=90

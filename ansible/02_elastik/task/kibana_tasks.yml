@@ -2,6 +2,7 @@
     id: D88E42B4
     url: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
     state: present
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
 - name: install dependencies
   apt:
@@ -9,10 +10,12 @@
   vars:
     packages:
     - apt-transport-https
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
 - apt_repository:
     repo: deb https://artifacts.elastic.co/packages/6.x/apt stable main
     state: present
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
 - name: install kibana
   apt:
@@ -20,6 +23,15 @@
   vars:
     packages:
     - kibana
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: install bsd kibana packages
+  openbsd_pkg:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - kibana
+  when: ansible_distribution == 'OpenBSD'
 
 - lineinfile:
     dest: /etc/kibana/kibana.yml
@@ -35,3 +47,8 @@
   service:
     name: kibana
     enabled: yes
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Enable service kibana
+  command: rcctl enable kibana
+  when: ansible_distribution == 'OpenBSD'

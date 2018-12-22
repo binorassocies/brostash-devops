@@ -6,11 +6,11 @@
   become_method: sudo
   become_user: root
   vars:
-    data_dir: '/data/elasticsearch'
+    net_host_site: true
+    data_dir: '/home/elasticsearch'
+    curator_dir: '/home/curator'
   tasks:
     - include_vars: "./var/elastik_vars.yml"
     - include: ./task/elastic_tasks.yml
-    - include: ./task/elastic_plugins_tasks.yml
-    - include: ./task/curator_tasks.yml
     - include: ./task/kibana_tasks.yml
-    - include: ./task/lighttpd_tasks.yml
+    - include: ./task/curator_tasks.yml

@@ -1,7 +1,17 @@
 - name: Install elasticsearch ingest geoip plugin
   shell: '/usr/share/elasticsearch/bin/elasticsearch-plugin install -b ingest-geoip'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
-- name: Start service elasticsearch
+- name: Install elasticsearch ingest user agent plugin
+  shell: '/usr/share/elasticsearch/bin/elasticsearch-plugin install -b ingest-user-agent'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Install elasticsearch ingest attachement plugin
+  shell: '/usr/share/elasticsearch/bin/elasticsearch-plugin install -b ingest-attachment'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Restart service elasticsearch
   service:
     name: elasticsearch
     state: restarted
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
