@@ -114,7 +114,7 @@
         "apt-get -y autoremove",
         "apt-get -y clean",
         "rm -f /var/log/*.log",
-        "rm -Rf /home/packer/.ansible",
+        "rm -Rf /home/toor/.ansible",
         "rm -Rf /tmp/*",
         "sync"
       ],
