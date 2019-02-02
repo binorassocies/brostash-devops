@@ -1,0 +1,25 @@
+- name: install nginx
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - nginx
+
+- template:
+   src: './template/nginx/elastic.conf.j2'
+   dest: '/etc/nginx/sites-enabled/elastic.conf'
+
+- template:
+   src: './template/nginx/kibana.conf.j2'
+   dest: '/etc/nginx/sites-enabled/kibana.conf'
+  when: http_kibana_port is defined
+
+- name: Enable service nginx
+  service:
+    name: nginx
+    enabled: yes
+
+- name: Restart service nginx
+  service:
+    name: nginx
+    state: restarted

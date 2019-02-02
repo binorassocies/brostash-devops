@@ -1,0 +1,7 @@
+server {
+  listen {{http_kibana_port}};
+
+  location / {
+      proxy_pass http://127.0.0.1:5601/;
+  }
+}

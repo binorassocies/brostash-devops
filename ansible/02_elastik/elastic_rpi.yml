@@ -1,16 +1,18 @@
 ---
 - hosts: all
   gather_facts: true
-  remote_user: toor
+  remote_user: pi
   become: true
   become_method: sudo
   become_user: root
   vars:
-    data_dir: '/data/elasticsearch'
+    elastic_ver: '6.5.0'
+    elastic_no_repo: true
+    disable_xpack_ml: true
+    is_single_node: true
   tasks:
-    - include_vars: "./var/elastik_vars.yml"
+    - include_vars: "./var/elastic.yml"
     - include: ./task/elastic_tasks.yml
+    - include: ./task/elastic_template_tasks.yml
     - include: ./task/elastic_plugins_tasks.yml
-    - include: ./task/curator_tasks.yml
-    - include: ./task/kibana_tasks.yml
     - include: ./task/nginx_tasks.yml

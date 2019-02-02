@@ -1,5 +1,0 @@
-server.modules += ("mod_proxy")
-
-$SERVER["socket"] == ":{{lighttpd_elastic_port}}" {
-  proxy.server = ( "" => ( ( "host" => "127.0.0.1", "port" => "9200" ) ) )
-}
