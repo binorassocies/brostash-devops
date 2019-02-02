@@ -62,7 +62,7 @@
   when: ansible_distribution == 'OpenBSD'
 
 - name: install gnupg packages
-  command: pkg_add https://ftp.openbsd.org/pub/OpenBSD/6.3/packages/amd64/gnupg-2.2.4.tgz
+  command: pkg_add https://ftp.openbsd.org/pub/OpenBSD/6.4/packages/amd64/gnupg-2.2.10.tgz
   when: ansible_distribution == 'OpenBSD'
 
 - name: config ntp server
@@ -231,13 +231,13 @@
   command: rcctl enable dhcpd
   when: ansible_distribution == 'OpenBSD'
 
-- name: install samba lighttpd
+- name: install samba nginx
   apt:
     name: "{{ packages }}"
   vars:
     packages:
     - samba
-    - lighttpd
+    - nginx
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - name: install bsd packages
@@ -322,12 +322,12 @@
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - template:
-   src: './template/lighttpd.conf.j2'
-   dest: '/etc/lighttpd/lighttpd.conf'
+   src: './template/nginx.conf.j2'
+   dest: '/etc/nginx/sites-enabled/default'
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
-- name: Enable service lighttpd
+- name: Enable service nginx
   service:
-    name: lighttpd
+    name: nginx
     enabled: yes
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
