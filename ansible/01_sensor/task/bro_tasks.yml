@@ -41,7 +41,7 @@
   when: ansible_distribution == 'OpenBSD'
 
 - name: install gnupg packages
-  command: pkg_add https://ftp.openbsd.org/pub/OpenBSD/6.3/packages/amd64/gnupg-2.2.4.tgz
+  command: pkg_add https://cdn.openbsd.org/pub/OpenBSD/6.4/packages/amd64/gnupg-2.2.10.tgz
   when: ansible_distribution == 'OpenBSD'
 
 - name: install packages
@@ -62,6 +62,7 @@
     - findutils
   when: ansible_distribution == 'OpenBSD'
 
+# ln -s /usr/local/bin/python2.7 /usr/local/bin/python
 - name: Create python sym links
   file: src=/usr/local/bin/python2.7 path=/usr/local/bin/python state=link
   when: ansible_distribution == 'OpenBSD'
