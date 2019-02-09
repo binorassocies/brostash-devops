@@ -1,0 +1,190 @@
+- name: install dependency packages
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - ca-certificates
+    - dirmngr
+    - gnupg
+    - curl
+    - build-essential
+    - make
+    - gcc
+    - libpcre3
+    - libpcre3-dbg
+    - autoconf
+    - automake
+    - libtool
+    - libpcap-dev
+    - libpcre3-dev
+    - libnet1-dev
+    - libyaml-0-2
+    - libyaml-dev
+    - zlib1g
+    - zlib1g-dev
+    - libcap-ng-dev
+    - libcap-ng0
+    - libmagic-dev
+    - libjansson-dev
+    - libjansson4
+    - pkg-config
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: define mirror url
+  set_fact:
+    mirror_url: "https://cdn.openbsd.org/pub/OpenBSD"
+  when: ansible_distribution == 'OpenBSD'
+
+- name: overwrite suricata install dir
+  set_fact:
+    suricata_dir: "/usr/local/suricata"
+  when: ansible_distribution == 'OpenBSD'
+
+- lineinfile:
+   dest: /etc/installurl
+   create: yes
+   regexp: '^{{ mirror_url }}'
+   line: '{{ mirror_url }}'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: install gnupg packages
+  command: pkg_add https://cdn.openbsd.org/pub/OpenBSD/6.4/packages/amd64/gnupg-2.2.10.tgz
+  when: ansible_distribution == 'OpenBSD'
+
+- name: install packages
+  openbsd_pkg:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - curl
+    - gnupg-2.2.10
+    - gcc
+    - python%2.7
+    - git
+    - gtar--
+    - libtool
+    - pcre
+    - jansson
+    - libmagic
+    - libyaml
+    - libnet%1.1
+    - autoconf%2.69
+    - automake%1.14
+    - GeoIP
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create python sym links
+  file: src=/usr/local/bin/python2.7 path=/usr/local/bin/python state=link
+  when: ansible_distribution == 'OpenBSD'
+- name: Create python sym links
+  file: src=/usr/local/bin/python2.7-2to3 path=/usr/local/bin/2to3 state=link
+  when: ansible_distribution == 'OpenBSD'
+- name: Create python sym links
+  file: src=/usr/local/bin/python2.7-config path=/usr/local/bin/python-config state=link
+  when: ansible_distribution == 'OpenBSD'
+- name: Create python sym links
+  file: src=/usr/local/bin/pydoc2.7 path=/usr/local/bin/pydoc state=link
+  when: ansible_distribution == 'OpenBSD'
+- name: Create gpg sym links
+  file: src=/usr/local/bin/gpg2 path=/usr/bin/gpg state=link
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create suricata install dir
+  file: path={{suricata_dir}} state=directory
+
+- name: Download suricata source
+  get_url:
+    url: https://www.openinfosecfoundation.org/download/suricata-{{suricata_ver}}.tar.gz
+    dest: /tmp/
+
+- name: Download suricata signature
+  get_url:
+    url: https://www.openinfosecfoundation.org/download/suricata-{{suricata_ver}}.tar.gz.sig
+    dest: /tmp/
+
+- name: Download suricata pub key
+  get_url:
+    url: https://www.openinfosecfoundation.org/downloads/OISF.pub
+    dest: /tmp/oisf.key.asc
+
+- shell: '/usr/bin/gpg --import /tmp/oisf.key.asc'
+- shell: '/usr/bin/gpg --verify /tmp/suricata-{{suricata_ver}}.tar.gz.sig /tmp/suricata-{{suricata_ver}}.tar.gz'
+  register: gpg_verify_result
+
+- debug:
+    var: gpg_verify_result.stdout_lines
+
+- debug:
+    var: gpg_verify_result.stderr_lines
+
+- name: Extract suricata archive
+  unarchive:
+    src: /tmp/suricata-{{suricata_ver}}.tar.gz
+    dest: /tmp
+    remote_src: yes
+
+- name: configure suricata
+  shell: |
+    cd /tmp/suricata-{{suricata_ver}}
+    ./configure --prefix={{suricata_dir}} --localstatedir={{suricata_dir}}/var
+  args:
+    executable: /bin/sh
+
+- name: Compile and install suricata
+  shell: |
+    cd /tmp/suricata-{{suricata_ver}}
+    make
+    make install
+    make install-conf
+  args:
+    executable: /bin/sh
+
+- name: Create suricata rules dir
+  file: path={{suricata_dir}}/etc/suricata/rules/ state=directory
+
+- lineinfile:
+   dest: '{{suricata_dir}}/etc/suricata/rules/local.rules'
+   line: 'alert tcp any any -> any ![80,8080] (msg:"SURICATA HTTP but not tcp port 80, 8080"; flow:to_server; app-layer-protocol:http; sid:2271001; rev:1;)'
+   create: yes
+
+- template:
+   src: './template/suricata/host_local_rules.yaml.j2'
+   dest: '{{suricata_dir}}/etc/suricata/host_local_rules.yaml'
+
+- template:
+   src: './template/suricata/host_local_outputs.yaml.j2'
+   dest: '{{suricata_dir}}/etc/suricata/host_local_outputs.yaml'
+
+- template:
+   src: './template/suricata/host_local_pcap.yaml.j2'
+   dest: '{{suricata_dir}}/etc/suricata/host_local_pcap.yaml'
+
+- lineinfile:
+   dest: '{{suricata_dir}}/etc/suricata/suricata.yaml'
+   line: 'include: host_local_rules.yaml'
+
+- lineinfile:
+   dest: '{{suricata_dir}}/etc/suricata/suricata.yaml'
+   line: 'include: host_local_outputs.yaml'
+
+- lineinfile:
+   dest: '{{suricata_dir}}/etc/suricata/suricata.yaml'
+   line: 'include: host_local_pcap.yaml'
+
+- template:
+   src: './template/suricata/suricata.rc.j2'
+   dest: '/etc/rc.d/suricata'
+   mode: 0755
+  when: ansible_distribution == 'OpenBSD'
+
+- template:
+   src: './template/suricata/suricata.service.j2'
+   dest: '/etc/systemd/system/suricata.service'
+   mode: 0755
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Enable service suricata
+  service:
+    name: suricata
+    enabled: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'

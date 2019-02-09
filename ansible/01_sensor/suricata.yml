@@ -1,0 +1,12 @@
+---
+- hosts: all
+  gather_facts: true
+  remote_user: toor
+  become: true
+  become_method: sudo
+  become_user: root
+  vars:
+    suricata_ver: "4.1.2"
+    suricata_dir: "/opt/suricata"
+  tasks:
+    - include: ./task/suricata_tasks.yml

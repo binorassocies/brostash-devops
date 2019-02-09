@@ -1,0 +1,10 @@
+%YAML 1.1
+---
+
+pcap:
+{% for nic in ansible_interfaces %}
+{% set ifacedata = hostvars[inventory_hostname]['ansible_' + nic] %}
+{% if ifacedata.type == 'ether' %}
+   - interface: {{nic}}
+{% endif %}
+{% endfor %}

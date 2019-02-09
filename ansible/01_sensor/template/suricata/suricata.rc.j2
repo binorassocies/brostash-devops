@@ -1,0 +1,5 @@
+#!/bin/sh
+daemon="{{suricata_dir}}/bin/suricata -c {{suricata_dir}}/etc/suricata/suricata.yaml --pcap"
+rc_bg="YES"
+. /etc/rc.d/rc.subr
+rc_cmd $1

@@ -1,0 +1,13 @@
+[Unit]
+Description=Suricata daemon
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=forking
+Environment=CFG={{suricata_dir}}/etc/suricata/suricata.yaml PID=/var/run/suricata.pid
+PIDFile=/var/run/suricata.pid
+ExecStart={{suricata_dir}}/bin/suricata -D -c $CFG --pidfile $PID --pcap
+
+[Install]
+WantedBy=multi-user.target
