@@ -1,5 +1,5 @@
 {
-  "_comment": "Build with `packer build --force 00-gate-sensor-openbsd.json`",
+  "_comment": "Build with `packer build --force 11-suricata-bsd-lab.json`",
   "variables": {
     "mirror": "http://cdn.openbsd.org",
     "disk_size": "20480",
@@ -12,9 +12,9 @@
     "root_password": "toor",
     "ssh_user": "toor",
     "ssh_password": "toor",
-    "system_hostname": "beta",
-    "ssh_port_forward": "20022",
-    "vm_name": "beta"
+    "system_hostname": "bsdlab",
+    "ssh_port_forward": "22022",
+    "vm_name": "bsdlab"
   },
   "builders": [
     {
@@ -52,11 +52,10 @@
         [ "modifyvm", "{{.Name}}", "--cpus", "{{user `cpus`}}" ],
         [ "modifyvm", "{{.Name}}", "--vrde", "off" ],
         [ "modifyvm", "{{.Name}}", "--nic2", "intnet" ],
-        [ "modifyvm", "{{.Name}}", "--nic3", "intnet" ],
-        [ "modifyvm", "{{.Name}}", "--intnet2", "net_prv1" ],
-        [ "modifyvm", "{{.Name}}", "--intnet3", "net_prv11" ],
+        [ "modifyvm", "{{.Name}}", "--intnet2", "lab_net2" ],
         [ "modifyvm", "{{.Name}}", "--audio", "none" ],
         [ "modifyvm", "{{.Name}}", "--natpf1", "guest_ssh,tcp,127.0.0.1,{{user `ssh_port_forward`}},,22" ],
+        [ "modifyvm", "{{.Name}}", "--natpf1", "guest_elastic,tcp,127.0.0.1,9220,,9220" ],
         [ "modifyvm", "{{.Name}}", "--vram", "12"]
       ],
       "virtualbox_version_file": ".vbox_version",
@@ -94,6 +93,16 @@
       "type": "ansible-local",
       "playbook_file": "../ansible/01_sensor/suricata.yml",
       "playbook_dir": "../ansible/01_sensor"
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "../ansible/02_elastik/elastik.yml",
+      "playbook_dir": "../ansible/02_elastik"
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "../ansible/04_beats/filebeat.yml",
+      "playbook_dir": "../ansible/04_beats"
     },
     {
       "type": "shell",

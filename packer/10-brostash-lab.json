@@ -1,5 +1,5 @@
 {
-  "_comment": "Build with `packer build --force 10-elk-debian.json`",
+  "_comment": "Build with `packer build --force 10-brostash-lab.json`",
   "variables": {
     "mirror": "http://cdimage.debian.org/debian-cd/current",
     "mirror_directory": "amd64/iso-cd",
@@ -7,7 +7,7 @@
     "preseed_path": "preseed_minimal.cfg",
     "disk_size": "20480",
     "memory": "2048",
-    "cpus": "1",
+    "cpus": "2",
     "iso_checksum": "87368242b8332a9ae6ddf48c5265c6618cbbca0497ced6ab1c05c674ac7a7f6aac2adff0534e65976b7d8bfddf4e4e87046190b01f61fecf8a9d75ca49cc7cdf",
     "iso_checksum_type": "sha512",
     "headless": "true",
@@ -15,9 +15,9 @@
     "root_password": "toor",
     "ssh_user": "toor",
     "ssh_password": "toor",
-    "system_hostname": "elklab",
+    "system_hostname": "brostash",
     "ssh_port_forward": "23022",
-    "vm_name": "elklab"
+    "vm_name": "brostash"
   },
   "builders": [
     {
@@ -60,12 +60,11 @@
         [ "modifyvm", "{{.Name}}", "--cpus", "{{user `cpus`}}" ],
         [ "modifyvm", "{{.Name}}", "--vrde", "off" ],
         [ "modifyvm", "{{.Name}}", "--nic2", "intnet" ],
-        [ "modifyvm", "{{.Name}}", "--intnet2", "intnet" ],
+        [ "modifyvm", "{{.Name}}", "--intnet2", "lab_net1" ],
         [ "modifyvm", "{{.Name}}", "--audio", "none" ],
         [ "modifyvm", "{{.Name}}", "--natpf1", "guest_ssh,tcp,127.0.0.1,{{user `ssh_port_forward`}},,22" ],
         [ "modifyvm", "{{.Name}}", "--natpf1", "guest_beat,tcp,127.0.0.1,5044,,5044" ],
         [ "modifyvm", "{{.Name}}", "--natpf1", "guest_elastic,tcp,127.0.0.1,9220,,9220" ],
-        [ "modifyvm", "{{.Name}}", "--natpf1", "guest_kibana,tcp,127.0.0.1,8080,,8080" ],
         [ "modifyvm", "{{.Name}}", "--vram", "12"]
       ],
       "shutdown_command": "echo 'packer' | sudo -S /sbin/shutdown -hP now",
@@ -94,6 +93,16 @@
     },
     {
       "type": "ansible-local",
+      "playbook_file": "../ansible/00_gateway/gate.yml",
+      "playbook_dir": "../ansible/00_gateway"
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "../ansible/01_sensor/bro.yml",
+      "playbook_dir": "../ansible/01_sensor"
+    },
+    {
+      "type": "ansible-local",
       "playbook_file": "../ansible/02_elastik/elastik.yml",
       "playbook_dir": "../ansible/02_elastik"
     },
@@ -101,6 +110,16 @@
       "type": "ansible-local",
       "playbook_file": "../ansible/03_logstash/logstash.yml",
       "playbook_dir": "../ansible/03_logstash"
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "../ansible/04_beats/packetbeat.yml",
+      "playbook_dir": "../ansible/04_beats"
+    },
+    {
+      "type": "ansible-local",
+      "playbook_file": "../ansible/04_beats/filebeat.yml",
+      "playbook_dir": "../ansible/04_beats"
     },
     {
       "type": "shell",
