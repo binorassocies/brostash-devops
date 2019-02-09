@@ -62,7 +62,7 @@
   when: ansible_distribution == 'OpenBSD'
 
 - name: install gnupg packages
-  command: pkg_add https://ftp.openbsd.org/pub/OpenBSD/6.4/packages/amd64/gnupg-2.2.10.tgz
+  command: pkg_add https://cdn.openbsd.org/pub/OpenBSD/6.4/packages/amd64/gnupg-2.2.10.tgz
   when: ansible_distribution == 'OpenBSD'
 
 - name: config ntp server
