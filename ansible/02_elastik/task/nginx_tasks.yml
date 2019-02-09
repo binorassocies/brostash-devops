@@ -4,22 +4,26 @@
   vars:
     packages:
     - nginx
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - template:
    src: './template/nginx/elastic.conf.j2'
    dest: '/etc/nginx/sites-enabled/elastic.conf'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - template:
    src: './template/nginx/kibana.conf.j2'
    dest: '/etc/nginx/sites-enabled/kibana.conf'
-  when: http_kibana_port is defined
+  when: http_kibana_port is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
 - name: Enable service nginx
   service:
     name: nginx
     enabled: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - name: Restart service nginx
   service:
     name: nginx
     state: restarted
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'

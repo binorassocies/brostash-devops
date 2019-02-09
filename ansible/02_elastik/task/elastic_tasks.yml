@@ -59,6 +59,11 @@
     state: present
   when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and elastic_no_repo is defined
 
+- name: overwrite data dir
+  set_fact:
+    data_dir: "/home/data/elasticsearch"
+  when: ansible_distribution == 'OpenBSD'
+
 - name: install bsd elasticsearch packages
   openbsd_pkg:
     name: "{{ packages }}"
