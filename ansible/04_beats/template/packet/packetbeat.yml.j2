@@ -1,0 +1,81 @@
+#################### Packetbeat Configuration Example #########################
+
+#============================== Network device ================================
+
+packetbeat.interfaces.device: any
+
+#================================== Flows =====================================
+
+# Set `enabled: false` or comment out all options to disable flows reporting.
+packetbeat.flows:
+  timeout: 30s
+  period: 10s
+
+#========================== Transaction protocols =============================
+
+packetbeat.protocols:
+
+- type: dns
+  ports: {{packetbeat_dns_ports}}
+  include_authorities: true
+  include_additionals: true
+
+- type: http
+  ports: {{packetbeat_http_ports}}
+  send_request: true
+  send_response: true
+  split_cookie: true
+  send_all_headers: true
+
+- type: tls
+  ports: {{packetbeat_tls_ports}}
+  send_certificates: true
+
+processors:
+ - drop_event:
+     when:
+        and:
+          - equals:
+              type: "flow"
+          - or:
+             - equals:
+                 source.ip: "127.0.0.1"
+{% for nic in ansible_interfaces %}
+{% set ifacedata = hostvars[inventory_hostname]['ansible_' + nic] %}
+{% if ifacedata.type == 'ether' %}
+{% if ifacedata.ipv4.address is defined %}
+{% set ip_adr = ifacedata.ipv4.address %}
+{% elif ifacedata.ipv4 is sequence %}
+{% set ip_adr = ifacedata.ipv4[0].address %}
+{% endif %}
+             - equals:
+                 source.ip: "{{ip_adr}}"
+{% endif %}
+{% endfor %}
+
+
+#================================ General =====================================
+
+{% if host_name is defined %}
+name: {{host_name}}
+{% else %}
+name: {{inventory_hostname}}
+{% endif %}
+{% if host_tags is defined %}
+tags: {{host_tags}}
+{% endif %}
+
+setup.template.enabled: false
+
+#-------------------------- Elasticsearch output ------------------------------
+output.elasticsearch:
+  hosts: ["{{elastic_hostip}}:{{elastic_hostport}}"]
+  index: "packetbeat-%{+yyyy.MM.dd}"
+{% if packetbeat_pipeline_name is defined %}
+  pipeline: {{packetbeat_pipeline_name}}
+{% endif %}
+
+logging.to_files: true
+logging.files:
+  path: /var/log/packetbeat
+  name: packetbeat

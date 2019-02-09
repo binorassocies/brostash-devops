@@ -1,0 +1,47 @@
+metricbeat.modules:
+
+#------------------------------- System Module -------------------------------
+- module: system
+  metricsets:
+    - cpu
+    - fsstat
+    - memory
+    - process_summary
+    - process
+    - network
+    - load
+    - filesystem
+
+  enabled: true
+{% if polling_period is defined %}
+  period: {{polling_period}}s
+{% else %}
+  period: 120s
+{% endif %}
+  #processes: ['.*']
+  cpu.metrics:  [percentages, normalized_percentages, ticks]
+
+processors:
+  - drop_event.when.regexp:
+      system.filesystem.mount_point: '^/(sys|cgroup|proc|dev|etc|host|boot|run)($|/)'
+
+#================================ General =====================================
+
+{% if host_name is defined %}
+name: {{host_name}}
+{% else %}
+name: {{inventory_hostname}}
+{% endif %}
+{% if host_tags is defined %}
+tags: {{host_tags}}
+{% endif %}
+
+
+#-------------------------- Elasticsearch output ------------------------------
+output.elasticsearch:
+  hosts: ["{{elastic_hostip}}:{{elastic_hostport}}"]
+
+logging.to_files: true
+logging.files:
+  path: /var/log/metricbeat
+  name: metricbeat

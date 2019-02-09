@@ -1,0 +1,14 @@
+# task to increase the pi swap size. Needed to compile some of the beats from source
+- lineinfile:
+    dest: /etc/dphys-swapfile
+    regexp: '^CONF_SWAPSIZE='
+    line: 'CONF_SWAPSIZE={{swap_size}}'
+
+- name: swapoff
+  command: dphys-swapfile swapoff
+
+- name: initialize swap conf
+  command: dphys-swapfile setup
+
+- name: swapon
+  command: dphys-swapfile swapon

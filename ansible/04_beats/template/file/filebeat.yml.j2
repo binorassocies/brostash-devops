@@ -1,0 +1,35 @@
+filebeat.config:
+  inputs:
+    enabled: true
+    path: inputs.d/*.yml
+
+#================================ General =====================================
+
+{% if host_name is defined %}
+name: {{host_name}}
+{% else %}
+name: {{inventory_hostname}}
+{% endif %}
+{% if host_tags is defined %}
+tags: {{host_tags}}
+{% endif %}
+
+setup.template.enabled: false
+
+#================================ Outputs =====================================
+{% if elastic_hostip is defined %}
+output.elasticsearch:
+  hosts: ["{{elastic_hostip}}:{{elastic_hostport}}"]
+  index: "filebeat-%{+yyyy.MM.dd}"
+
+{% elif logstash_beat_host is defined %}
+output.logstash:
+  hosts: ["{{logstash_beat_host}}:{{logstash_beat_port}}"]
+
+{% endif %}
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /var/log/filebeat
+  name: filebeat

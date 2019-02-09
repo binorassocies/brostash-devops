@@ -1,0 +1,12 @@
+[Unit]
+Description=Metricbeat is a lightweight shipper for metrics.
+Documentation=https://www.elastic.co/products/beats/metricbeat
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/metricbeat -c /etc/metricbeat/metricbeat.yml -path.config /etc/metricbeat -path.data /var/lib/metricbeat -path.logs /var/log/metricbeat
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,146 @@
+- name: install dependencies
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - apt-transport-https
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: install dependencies for build
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - libpcap0.8-dev
+    - git
+    - gcc
+    - make
+    - libc-dev
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- apt_key:
+    id: D88E42B4
+    url: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
+    state: present
+  when: beat_compile_src is not defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- apt_repository:
+    repo: deb https://artifacts.elastic.co/packages/6.x/apt stable main
+    state: present
+  when: beat_compile_src is not defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: install packetbeat
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - packetbeat
+  when: beat_compile_src is not defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Create config directory
+  file: path=/etc/packetbeat/ state=directory
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Create data directory
+  file: path=/var/lib/packetbeat/ state=directory
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Create log directory
+  file: path=/var/log/packetbeat/ state=directory
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+## Download golang
+- name: Download golang
+  get_url:
+    url: https://dl.google.com/go/go{{golang_version}}.linux-amd64.tar.gz
+    dest: /tmp/go{{golang_version}}.linux.tar.gz
+  when: golang_arch is not defined and beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Download golang
+  get_url:
+    url: https://dl.google.com/go/go{{golang_version}}.linux-{{golang_arch}}.tar.gz
+    dest: /tmp/go{{golang_version}}.linux.tar.gz
+  when: golang_arch is defined and beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Extract golang archive
+  unarchive:
+    src: /tmp/go{{golang_version}}.linux.tar.gz
+    dest: /usr/local
+    remote_src: yes
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Create go home directory
+  file: path=/opt/go state=directory
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: build packetbeat binary
+  shell: |
+    cd /opt/go
+    go get github.com/elastic/beats
+    cd /opt/go/src/github.com/elastic/beats/
+    git checkout v{{beat_version}}
+    cd /opt/go/src/github.com/elastic/beats/packetbeat/
+    make
+    mv packetbeat /usr/bin/.
+  args:
+    executable: /bin/bash
+  environment:
+    GOPATH: "/opt/go"
+    PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin"
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- template:
+   src: './template/packet/packetbeat.service'
+   dest: '/etc/systemd/system/packetbeat.service'
+   mode: 0755
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- template:
+   src: './template/packet/packetbeat.yml.j2'
+   dest: '/etc/packetbeat/packetbeat.yml'
+
+- name: Enable service packetbeat
+  service:
+    name: packetbeat
+    enabled: yes
+  when: beat_compile_src is not defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Enable service packetbeat
+  shell: 'systemctl enable packetbeat'
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- template:
+   src: './template/packet/packetbeat-index-template.json'
+   dest: '/etc/packetbeat/packetbeat-index-template.json'
+
+- template:
+   src: './template/packet/pipeline-packetbeat.json'
+   dest: '/etc/packetbeat/pipeline-packetbeat.json'
+
+- name: get packetbeat template content
+  shell: 'cat /etc/packetbeat/packetbeat-index-template.json'
+  register: packetbeat_template_json
+
+- name: get packetbeat pipeline content
+  shell: 'cat /etc/packetbeat/pipeline-packetbeat.json'
+  register: packetbeat_pipeline_json
+  when: packetbeat_pipeline_name is defined
+
+- name: post template
+  uri:
+    url: http://{{elastic_hostip}}:{{elastic_hostport}}/_template/packetbeat
+    method: PUT
+    body: "{{packetbeat_template_json.stdout}}"
+    body_format: "json"
+    headers:
+      Content-Type: "application/json"
+
+- name: post pipeline configuration
+  uri:
+    url: http://{{elastic_hostip}}:{{elastic_hostport}}/_ingest/pipeline/packetbeat-pipeline
+    method: PUT
+    body: "{{packetbeat_pipeline_json.stdout}}"
+    body_format: "json"
+    headers:
+      Content-Type: "application/json"
+  when: packetbeat_pipeline_name is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')

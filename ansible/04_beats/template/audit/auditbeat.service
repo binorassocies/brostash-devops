@@ -1,0 +1,12 @@
+[Unit]
+Description=Audit the activities of users and processes on your system.
+Documentation=https://www.elastic.co/products/beats/auditbeat
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/auditbeat -c /etc/auditbeat/auditbeat.yml -path.config /etc/auditbeat -path.data /var/lib/auditbeat -path.logs /var/log/auditbeat
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

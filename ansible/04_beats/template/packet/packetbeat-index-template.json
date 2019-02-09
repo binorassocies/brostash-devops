@@ -1,0 +1,68 @@
+{
+  "order": 2,
+  "template": "packetbeat-*",
+  "mappings": {
+    "_default_": {
+      "properties": {
+        "client_ip": { "type": "ip" },
+        "ip": { "type": "ip" },
+        "client_ip_geoip"  : {
+          "properties" : {
+            "ip": { "type": "ip" },
+            "location" : { "type" : "geo_point" },
+            "latitude" : { "type" : "half_float" },
+            "longitude" : { "type" : "half_float" }
+          }
+        },
+        "ip_geoip"  : {
+          "properties" : {
+            "ip": { "type": "ip" },
+            "location" : { "type" : "geo_point" },
+            "latitude" : { "type" : "half_float" },
+            "longitude" : { "type" : "half_float" }
+          }
+        },
+        "client_port": { "type": "integer" },
+        "port": { "type": "integer" },
+        "http"  : {
+          "properties" : {
+            "response": {
+              "properties" : {
+                "code": { "type": "integer" }
+              }
+            }
+          }
+        },
+        "source"  : {
+          "properties" : {
+            "ip": { "type": "ip" },
+            "port": { "type": "integer" },
+            "ip_geoip" : {
+              "properties" : {
+                "ip": { "type": "ip" },
+                "location" : { "type" : "geo_point" },
+                "latitude" : { "type" : "half_float" },
+                "longitude" : { "type" : "half_float" }
+              }
+            }
+          }
+        },
+        "dest"  : {
+          "properties" : {
+            "ip": { "type": "ip" },
+            "port": { "type": "integer" },
+            "ip_geoip" : {
+              "properties" : {
+                "ip": { "type": "ip" },
+                "location" : { "type" : "geo_point" },
+                "latitude" : { "type" : "half_float" },
+                "longitude" : { "type" : "half_float" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "aliases": {}
+}

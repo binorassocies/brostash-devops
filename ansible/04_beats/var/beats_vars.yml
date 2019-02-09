@@ -1,0 +1,12 @@
+logstash_beat_host: '127.0.0.1'
+logstash_beat_port: 5044
+elastic_hostip: '127.0.0.1'
+elastic_hostport: 9200
+beat_version: 6.6.0
+golang_version: 1.11.5
+#packetbeat_pipeline_name: 'packetbeat-pipeline'
+#filebeat_pipeline_name: 'packetbeat-pipeline'
+packetbeat_dns_ports: '[53, 5353]'
+packetbeat_http_ports: '[80, 8080, 8000, 5000, 8002]'
+packetbeat_tls_ports: '[443, 993, 995, 465, 9001, 9050]'
+#metricbeat_disable_template: true

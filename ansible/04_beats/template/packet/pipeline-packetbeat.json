@@ -1,0 +1,76 @@
+{
+  "description": "Packetbeat pipeline",
+  "processors": [
+    {
+      "convert": {
+        "field" : "http.response.code",
+        "type": "integer",
+        "ignore_missing": true
+      }
+    },
+    {
+      "geoip" : {
+        "field" : "client_ip",
+        "target_field": "client_ip_geoip",
+        "database_file": "GeoLite2-City.mmdb",
+        "ignore_missing": true
+      }
+    },
+    {
+      "geoip" : {
+        "field" : "client_ip",
+        "target_field": "client_ip_geoip.asn",
+        "database_file": "GeoLite2-ASN.mmdb",
+        "ignore_missing": true
+      }
+    },
+    {
+      "geoip" : {
+        "field" : "ip",
+        "target_field": "ip_geoip",
+        "database_file": "GeoLite2-City.mmdb",
+        "ignore_missing": true
+      }
+    },
+    {
+      "geoip" : {
+        "field" : "ip",
+        "target_field": "ip_geoip.asn",
+        "database_file": "GeoLite2-ASN.mmdb",
+        "ignore_missing": true
+      }
+    },
+    {
+      "geoip" : {
+        "field" : "source.ip",
+        "target_field": "source.ip_geoip",
+        "database_file": "GeoLite2-City.mmdb",
+        "ignore_missing": true
+      }
+    },
+    {
+      "geoip" : {
+        "field" : "source.ip",
+        "target_field": "source.ip_geoip.asn",
+        "database_file": "GeoLite2-ASN.mmdb",
+        "ignore_missing": true
+      }
+    },
+    {
+      "geoip" : {
+        "field" : "dest.ip",
+        "target_field": "dest.ip_geoip",
+        "database_file": "GeoLite2-City.mmdb",
+        "ignore_missing": true
+      }
+    },
+    {
+      "geoip" : {
+        "field" : "dest.ip",
+        "target_field": "dest.ip_geoip.asn",
+        "database_file": "GeoLite2-ASN.mmdb",
+        "ignore_missing": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,135 @@
+- name: install dependencies
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - apt-transport-https
+  when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: define mirror url
+  set_fact:
+    mirror_url: "https://cdn.openbsd.org/pub/OpenBSD"
+  when: ansible_distribution == 'OpenBSD'
+
+- name: OpenBSD define mirror url
+  lineinfile:
+   dest: /etc/installurl
+   create: yes
+   regexp: '^{{ mirror_url }}'
+   line: '{{ mirror_url }}'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: install dependencies for build
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - git
+    - gcc
+    - make
+    - libc-dev
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- apt_key:
+    id: D88E42B4
+    url: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
+    state: present
+  when: beat_compile_src is not defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- apt_repository:
+    repo: deb https://artifacts.elastic.co/packages/6.x/apt stable main
+    state: present
+  when: beat_compile_src is not defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: install filebeat
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - filebeat
+  when: beat_compile_src is not defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: install bsd filebeat packages
+  openbsd_pkg:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - filebeat
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create config directory
+  file: path=/etc/filebeat/ state=directory
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Create data directory
+  file: path=/var/lib/filebeat/ state=directory
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Create log directory
+  file: path=/var/log/filebeat/ state=directory
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Create log directory
+  file: path=/var/log/filebeat/ state=directory
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create conf inputs.d directory
+  file: path=/etc/filebeat/inputs.d state=directory
+
+## Download golang
+- name: Download golang
+  get_url:
+    url: https://dl.google.com/go/go{{golang_version}}.linux-amd64.tar.gz
+    dest: /tmp/go{{golang_version}}.linux.tar.gz
+  when: golang_arch is not defined and beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Download golang
+  get_url:
+    url: https://dl.google.com/go/go{{golang_version}}.linux-{{golang_arch}}.tar.gz
+    dest: /tmp/go{{golang_version}}.linux.tar.gz
+  when: golang_arch is defined and beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Extract golang archive
+  unarchive:
+    src: /tmp/go{{golang_version}}.linux.tar.gz
+    dest: /usr/local
+    remote_src: yes
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: Create go home directory
+  file: path=/opt/go state=directory
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: build filebeat binary
+  shell: |
+    cd /opt/go
+    go get github.com/elastic/beats
+    cd /opt/go/src/github.com/elastic/beats/
+    git checkout v{{beat_version}}
+    cd /opt/go/src/github.com/elastic/beats/filebeat/
+    make
+    mv filebeat /usr/bin/.
+  args:
+    executable: /bin/bash
+  environment:
+    GOPATH: "/opt/go"
+    PATH: "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/go/bin"
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- template:
+   src: './template/file/filebeat.service'
+   dest: '/etc/systemd/system/filebeat.service'
+   mode: 0755
+  when: beat_compile_src is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- template:
+   src: './template/file/filebeat.yml.j2'
+   dest: '/etc/filebeat/filebeat.yml'
+
+- template:
+   src: './template/file/filebeat_input_bro.yml.sample'
+   dest: '/etc/filebeat/inputs.d/bro.yml.sample'
+
+- template:
+   src: './template/file/filebeat_input_suricata.yml.sample'
+   dest: '/etc/filebeat/inputs.d/suricata.yml.sample'

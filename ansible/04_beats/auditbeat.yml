@@ -1,0 +1,10 @@
+---
+- hosts: all
+  gather_facts: true
+  remote_user: toor
+  become: true
+  become_method: sudo
+  become_user: root
+  tasks:
+    - include_vars: "./var/beats_vars.yml"
+    - include: ./task/auditbeat_tasks.yml

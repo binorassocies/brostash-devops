@@ -1,0 +1,9 @@
+- type: log
+  paths:
+    - /usr/local/suricata/var/log/suricata/eve-*.json
+  fields:
+    logtype: suricata
+    type: logstash-suricata
+  fields_under_root: true
+  json.keys_under_root: true
+  json.add_error_key: true
