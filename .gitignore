@@ -2,7 +2,7 @@
 *.DS_Store
 ._*
 *.log
-*/test/*
+*test/*
 *cache
 *build
 *.retry
