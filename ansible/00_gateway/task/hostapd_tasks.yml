@@ -1,0 +1,44 @@
+
+- name: define host nic list
+  set_fact:
+    h_nic_list: "{% set h_nic_list = h_nic_list|default([]) + [hostvars[inventory_hostname]['ansible_' + item]['device']] %}{{ h_nic_list | list }}"
+  when: hostvars[inventory_hostname]['ansible_' + item]['type'] == "ether"
+  with_items:
+    - "{{ ansible_interfaces }}"
+
+- fail:
+    msg: "The ap interface is not available on the host system"
+  when: ap_nic not in h_nic_list
+
+- name: Display random password
+  shell: 'tr -d -c "a-zA-Z0-9" < /dev/urandom | head -c 13'
+  register: ap_rnd_pwd
+
+- debug:
+    var: ap_rnd_pwd.stdout
+
+- name: install packages
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - hostapd
+    - rfkill
+    - iw
+    - lshw
+    - usbutils
+
+- template:
+   src: './template/hostapd/hostapd.conf.j2'
+   dest: '/etc/hostapd/hostapd.conf'
+
+- template:
+   src: './template/hostapd/hostapd.service.j2'
+   dest: '/etc/systemd/system/hostapd.service'
+   mode: 755
+
+- name: Enable service hostapd
+  shell: systemctl enable hostapd
+
+- name: Start service hostapd
+  shell: systemctl restart hostapd

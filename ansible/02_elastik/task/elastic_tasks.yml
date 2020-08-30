@@ -3,7 +3,7 @@
     name: "{{ packages }}"
   vars:
     packages:
-    - openjdk-8-jre-headless
+    - openjdk-11-jre-headless
     - apt-transport-https
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
@@ -35,7 +35,7 @@
   when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and elastic_no_repo is not defined
 
 - apt_repository:
-    repo: deb https://artifacts.elastic.co/packages/6.x/apt stable main
+    repo: deb https://artifacts.elastic.co/packages/7.x/apt stable main
     state: present
   when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and elastic_no_repo is not defined
 
@@ -49,7 +49,7 @@
 
 - name: Download elasticsearch deb
   get_url:
-    url: https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{elastic_ver}}.deb
+    url: https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{elastic_ver}}-amd64.deb
     dest: /tmp/
   when: (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu') and elastic_no_repo is defined
 

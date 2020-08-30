@@ -6,7 +6,7 @@
   become_method: sudo
   become_user: root
   vars:
-    suricata_ver: "5.0.2"
-    suricata_dir: "/opt/suricata"
+    ap_ssid: 'binorlab'
+    ap_nic: 'wlan0'
   tasks:
-    - include: ./task/suricata_tasks.yml
+    - include: ./task/hostapd_tasks.yml

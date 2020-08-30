@@ -73,8 +73,8 @@
   file: path=/var/log/filebeat/ state=directory
   when: ansible_distribution == 'OpenBSD'
 
-- name: Create conf inputs.d directory
-  file: path=/etc/filebeat/inputs.d state=directory
+- name: Create conf modules.d directory
+  file: path=/etc/filebeat/modules.d state=directory
 
 ## Download golang
 - name: Download golang

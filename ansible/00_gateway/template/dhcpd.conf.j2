@@ -14,7 +14,6 @@
 shared-network {{mydom}} {
   default-lease-time 86400;
   option domain-name "{{mydom}}";
-  option domain-name-servers {{ip_adr}};
   subnet {{ip_net}} netmask 255.255.255.0 {
     option subnet-mask 255.255.255.0;
     option routers {{ip_adr}};

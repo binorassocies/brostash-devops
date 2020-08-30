@@ -1,12 +1,12 @@
 ---
 - hosts: all
   gather_facts: true
-  remote_user: pi
+  remote_user: toor
   become: true
   become_method: sudo
   become_user: root
   vars:
-    elastic_ver: '6.6.0'
+    elastic_ver: '7.6.0'
     elastic_no_repo: true
     disable_xpack_ml: true
     is_single_node: true
@@ -14,6 +14,6 @@
   tasks:
     - include_vars: "./var/elastik_vars.yml"
     - include: ./task/elastic_tasks.yml
-    - include: ./task/elastic_plugins_tasks.yml
+    #- include: ./task/elastic_plugins_tasks.yml
     - include: ./task/curator_tasks.yml
     - include: ./task/nginx_tasks.yml

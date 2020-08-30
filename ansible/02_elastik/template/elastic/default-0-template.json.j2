@@ -19,23 +19,21 @@
     }
   },
   "mappings": {
-    "_default_": {
-      "dynamic_templates": [
-        {
-          "string_fields": {
-            "mapping": {
-              "ignore_above": 2048,
-              "type": "keyword"
-            },
-            "match_mapping_type": "string",
-            "match": "*"
-          }
+    "dynamic_templates": [
+      {
+        "string_fields": {
+          "mapping": {
+            "ignore_above": 2048,
+            "type": "keyword"
+          },
+          "match_mapping_type": "string",
+          "match": "*"
         }
-      ],
-      "properties": {
-        "message": { "analyzer": "simple", "type": "text" },
-        "message_raw": { "index": false, "type": "text" }
       }
+    ],
+    "properties": {
+      "message": { "analyzer": "simple", "type": "text" },
+      "message_raw": { "index": false, "type": "text" }
     }
   },
   "aliases": {}

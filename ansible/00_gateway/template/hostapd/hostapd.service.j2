@@ -1,0 +1,12 @@
+[Unit]
+Description=Hostapd Access Point
+After=sys-subsystem-net-devices-{{ap_nic}}.device
+BindsTo=sys-subsystem-net-devices-{{ap_nic}}.device
+
+[Service]
+Type=forking
+PIDFile=/var/run/hostapd.pid
+ExecStart=/usr/sbin/hostapd -B /etc/hostapd/hostapd.conf -P /var/run/hostapd.pid
+
+[Install]
+WantedBy=multi-user.target

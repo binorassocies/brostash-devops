@@ -6,7 +6,7 @@
   become_method: sudo
   become_user: root
   vars:
-    mydom: 'binor.co'
+    mydom: 'binor.lab'
     unbound_root_dir: '/etc/unbound'
   tasks:
     - include_vars: "./var/gate_vars.yml"

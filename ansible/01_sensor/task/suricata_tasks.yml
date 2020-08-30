@@ -28,6 +28,12 @@
     - libjansson-dev
     - libjansson4
     - pkg-config
+    - libnspr4-dev
+    - libnss3-dev
+    - liblz4-dev
+    - rustc
+    - cargo
+    - python3-distutils
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - name: define mirror url
@@ -48,7 +54,7 @@
   when: ansible_distribution == 'OpenBSD'
 
 - name: install gnupg packages
-  command: pkg_add https://cdn.openbsd.org/pub/OpenBSD/6.4/packages/amd64/gnupg-2.2.10.tgz
+  command: pkg_add https://ftp.openbsd.org/pub/OpenBSD/6.3/packages/amd64/gnupg-2.2.4.tgz
   when: ansible_distribution == 'OpenBSD'
 
 - name: install packages
@@ -70,7 +76,6 @@
     - libnet%1.1
     - autoconf%2.69
     - automake%1.14
-    - GeoIP
   when: ansible_distribution == 'OpenBSD'
 
 - name: Create python sym links
@@ -148,15 +153,15 @@
    create: yes
 
 - template:
-   src: './template/suricata/host_local_rules.yaml.j2'
+   src: './template/host_local_rules.yaml.j2'
    dest: '{{suricata_dir}}/etc/suricata/host_local_rules.yaml'
 
 - template:
-   src: './template/suricata/host_local_outputs.yaml.j2'
+   src: './template/host_local_outputs.yaml.j2'
    dest: '{{suricata_dir}}/etc/suricata/host_local_outputs.yaml'
 
 - template:
-   src: './template/suricata/host_local_pcap.yaml.j2'
+   src: './template/host_local_pcap.yaml.j2'
    dest: '{{suricata_dir}}/etc/suricata/host_local_pcap.yaml'
 
 - lineinfile:
@@ -172,13 +177,13 @@
    line: 'include: host_local_pcap.yaml'
 
 - template:
-   src: './template/suricata/suricata.rc.j2'
+   src: './template/suricata.rc.j2'
    dest: '/etc/rc.d/suricata'
    mode: 0755
   when: ansible_distribution == 'OpenBSD'
 
 - template:
-   src: './template/suricata/suricata.service.j2'
+   src: './template/suricata.service.j2'
    dest: '/etc/systemd/system/suricata.service'
    mode: 0755
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'

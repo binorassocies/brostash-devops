@@ -10,7 +10,7 @@
   tasks:
     - include_vars: "./var/elastik_vars.yml"
     - include: ./task/elastic_tasks.yml
-    - include: ./task/elastic_plugins_tasks.yml
+    #- include: ./task/elastic_plugins_tasks.yml
     - include: ./task/curator_tasks.yml
-    #- include: ./task/kibana_tasks.yml
+    - include: ./task/kibana_tasks.yml
     - include: ./task/nginx_tasks.yml

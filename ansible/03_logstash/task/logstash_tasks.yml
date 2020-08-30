@@ -8,11 +8,11 @@
     name: "{{ packages }}"
   vars:
     packages:
-    - openjdk-8-jre-headless
+    - openjdk-11-jre-headless
     - apt-transport-https
 
 - apt_repository:
-    repo: deb https://artifacts.elastic.co/packages/6.x/apt stable main
+    repo: deb https://artifacts.elastic.co/packages/7.x/apt stable main
     state: present
 
 - name: install logstash
