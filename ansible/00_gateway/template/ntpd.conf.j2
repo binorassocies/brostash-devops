@@ -4,9 +4,7 @@ sensor *
 constraints from "https://www.google.com"
 
 servers pool.ntp.org
-{% for nip in ntp_server %}
-servers {{nip}}
-{% endfor %}
+
 {% set def_nic = ansible_default_ipv4.interface %}
 {% for nic in ansible_interfaces %}
 {% set ifacedata = hostvars[inventory_hostname]['ansible_' + nic] %}

@@ -1,5 +1,1 @@
-tor_exit_port: 443
-tor_trans_port: 9060
-tor_dns_port: 9053
-tor_socks_port: 9050
-ntp_server: ["129.6.15.27", "129.6.15.28", "129.6.15.29", "129.6.15.30"]
+use_dot: true

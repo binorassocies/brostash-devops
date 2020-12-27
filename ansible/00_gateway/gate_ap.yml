@@ -1,12 +1,11 @@
 ---
 - hosts: all
   gather_facts: true
-  remote_user: toor
   become: true
   become_method: sudo
   become_user: root
   vars:
-    ap_ssid: 'binorlab'
+    ap_ssid: 'PleaseChangeMe'
     ap_nic: 'wlan0'
   tasks:
     - include: ./task/hostapd_tasks.yml

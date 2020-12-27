@@ -65,15 +65,6 @@
   command: pkg_add https://cdn.openbsd.org/pub/OpenBSD/6.4/packages/amd64/gnupg-2.2.10.tgz
   when: ansible_distribution == 'OpenBSD'
 
-- name: config ntp server
-  lineinfile:
-   dest: '/etc/ntp.conf'
-   regexp: '^server\s+{{ item }}'
-   line: 'server  {{ item }}'
-  with_items:
-    - "{{ ntp_server }}"
-  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
-
 - name: config ntp listening interface
   lineinfile:
    dest: '/etc/ntp.conf'
@@ -122,6 +113,12 @@
 - template:
    src: './template/unbound/unbound.forwarder.conf.j2'
    dest: '{{unbound_root_dir}}/unbound.conf.d/99_unbound.forwarder.conf'
+  when: use_dot is not defined
+
+- template:
+   src: './template/unbound/unbound.forwarder.ssl.conf.j2'
+   dest: '{{unbound_root_dir}}/unbound.conf.d/99_unbound.forwarder.conf'
+  when: use_dot is defined
 
 - lineinfile:
    dest: '/etc/dhcpcd.conf'

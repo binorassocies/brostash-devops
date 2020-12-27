@@ -21,7 +21,7 @@
 /sbin/iptables -t nat -A PREROUTING -i {{nic}} -p tcp --dport 53 -j REDIRECT --to-port 53
 /sbin/iptables -t nat -A POSTROUTING -o {{def_nic}} -j MASQUERADE -s {{ip_adr}}/24
 /sbin/iptables -A FORWARD -i {{nic}} -j ACCEPT
-/sbin/iptables -A FORWARD -o {{nic}} -m state --state ESTABLISHED -j ACCEPT
+/sbin/iptables -A FORWARD -o {{nic}} -m state --state RELATED,ESTABLISHED -j ACCEPT
 
 {% endif %}
 {% endfor %}
