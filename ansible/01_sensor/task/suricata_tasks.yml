@@ -1,3 +1,25 @@
+- name: get os id
+  set_fact:
+    os_id: "{{ ansible_lsb.id }}"
+
+- lineinfile:
+    dest: /etc/dphys-swapfile
+    regexp: '^CONF_SWAPSIZE='
+    line: 'CONF_SWAPSIZE=2048'
+  when: os_id == "Raspbian"
+
+- name: swapoff
+  command: dphys-swapfile swapoff
+  when: os_id == "Raspbian"
+
+- name: initialize swap conf
+  command: dphys-swapfile setup
+  when: os_id == "Raspbian"
+
+- name: swapon
+  command: dphys-swapfile swapon
+  when: os_id == "Raspbian"
+
 - name: install dependency packages
   apt:
     name: "{{ packages }}"
@@ -135,10 +157,16 @@
   args:
     executable: /bin/sh
 
-- name: Compile and install suricata
+- name: Compile suricata
   shell: |
     cd /tmp/suricata-{{suricata_ver}}
     make
+  args:
+    executable: /bin/sh
+
+- name: Install suricata
+  shell: |
+    cd /tmp/suricata-{{suricata_ver}}
     make install
     make install-conf
   args:

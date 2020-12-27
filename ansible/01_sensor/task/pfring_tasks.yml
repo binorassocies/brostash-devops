@@ -1,6 +1,10 @@
 - shell: uname -r
   register: uname_result
 
+- name: get os id
+  set_fact:
+    os_id: "{{ ansible_lsb.id }}"
+
 - name: install dependency packages
   apt:
     name: "{{ packages }}"
@@ -15,7 +19,6 @@
     - build-essential
     - make
     - gcc
-    - linux-headers-{{uname_result.stdout}}
 
 - name: install dependency packages for Ubuntu
   apt:
@@ -24,24 +27,28 @@
     packages:
     - linux-headers-generic
     - linux-image-generic
+    - linux-headers-{{uname_result.stdout}}
   when: ansible_distribution == 'Ubuntu'
 
-- name: install dependency packages for Debian
+- name: install dependency packages for Debian (Non Raspbian)
   apt:
     name: "{{ packages }}"
   vars:
     packages:
     - linux-headers-amd64
     - linux-image-amd64
-  when: ansible_distribution == 'Debian' and is_raspbian is not defined
+    - linux-headers-{{uname_result.stdout}}
+  when: ansible_distribution == 'Debian' and os_id != "Raspbian"
 
 - name: install dependency packages for Raspbian
   apt:
     name: "{{ packages }}"
   vars:
     packages:
+    - raspberrypi-bootloader
+    - linux-headers-rpi
     - raspberrypi-kernel-headers
-  when: is_raspbian is defined
+  when: os_id == "Raspbian"
 
 - name: Create pfring install dir
   file: path={{pfring_dir}} state=directory

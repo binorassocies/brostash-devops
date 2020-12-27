@@ -1,3 +1,0 @@
-pfring_ver: "7.2.0"
-pfring_dir: "/opt/pfring"
-min_num_slots: 8192

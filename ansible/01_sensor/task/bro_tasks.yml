@@ -1,3 +1,25 @@
+- name: get os id
+  set_fact:
+    os_id: "{{ ansible_lsb.id }}"
+
+- lineinfile:
+    dest: /etc/dphys-swapfile
+    regexp: '^CONF_SWAPSIZE='
+    line: 'CONF_SWAPSIZE=2048'
+  when: os_id == "Raspbian"
+
+- name: swapoff
+  command: dphys-swapfile swapoff
+  when: os_id == "Raspbian"
+
+- name: initialize swap conf
+  command: dphys-swapfile setup
+  when: os_id == "Raspbian"
+
+- name: swapon
+  command: dphys-swapfile swapon
+  when: os_id == "Raspbian"
+
 - name: install dependency packages
   apt:
     name: "{{ packages }}"
@@ -84,26 +106,21 @@
 
 - name: Download bro source
   get_url:
-    url: https://www.bro.org/downloads/bro-{{bro_ver}}.tar.gz
+    url: https://download.zeek.org/zeek-{{bro_ver}}.tar.gz
     dest: /tmp/
 
 - name: Download bro signature
   get_url:
-    url: https://www.bro.org/downloads/bro-{{bro_ver}}.tar.gz.asc
+    url: https://download.zeek.org/zeek-{{bro_ver}}.tar.gz.asc
     dest: /tmp/
-
-#- name: Download bro pub key
-#  get_url:
-#    url: https://pgp.mit.edu/pks/lookup?op=get&search=0x33F15EAEF8CB8019
-#    dest: /tmp/bro.key.asc
 
 - name: bro pub key
   copy:
-    src: ./data/bro.key.asc
-    dest: /tmp/bro.key.asc
+    src: ./data/zeek.key.asc
+    dest: /tmp/zeek.key.asc
 
-- shell: '/usr/bin/gpg --no-tty --import /tmp/bro.key.asc'
-- shell: '/usr/bin/gpg --no-tty --verify /tmp/bro-{{bro_ver}}.tar.gz.asc /tmp/bro-{{bro_ver}}.tar.gz'
+- shell: '/usr/bin/gpg --no-tty --import /tmp/zeek.key.asc'
+- shell: '/usr/bin/gpg --no-tty --verify /tmp/zeek-{{bro_ver}}.tar.gz.asc /tmp/zeek-{{bro_ver}}.tar.gz'
   register: gpg_verify_result
 
 - debug:
@@ -114,37 +131,37 @@
 
 - name: Extract bro archive
   unarchive:
-    src: /tmp/bro-{{bro_ver}}.tar.gz
+    src: /tmp/zeek-{{bro_ver}}.tar.gz
     dest: /tmp
     remote_src: yes
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - name: Extract bro archive
   unarchive:
-    src: /tmp/bro-{{bro_ver}}.tar.gz
+    src: /tmp/zeek-{{bro_ver}}.tar.gz
     dest: /home
     remote_src: yes
   when: ansible_distribution == 'OpenBSD'
 
 - name: configure bro
   shell: |
-    cd /tmp/bro-{{bro_ver}}
+    cd /tmp/zeek-{{bro_ver}}
     ./configure --prefix={{bro_dir}} --with-pcap={{pfring_dir}}
   args:
     executable: /bin/sh
-  when: pfring_dir is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+  when: (pfring_dir is defined and os_id != "Raspbian") and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
 - name: configure bro without pfring
   shell: |
-    cd /tmp/bro-{{bro_ver}}
+    cd /tmp/zeek-{{bro_ver}}
     ./configure --prefix={{bro_dir}}
   args:
     executable: /bin/sh
-  when: pfring_dir is not defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+  when: (pfring_dir is not defined or os_id == "Raspbian") and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
 - name: configure bro
   shell: |
-    cd /home/bro-{{bro_ver}}
+    cd /home/zeek-{{bro_ver}}
     ./configure --prefix={{bro_dir}}
   args:
     executable: /bin/sh
@@ -157,7 +174,7 @@
 
 - name: Compile and install bro
   shell: |
-    cd /tmp/bro-{{bro_ver}}
+    cd /tmp/zeek-{{bro_ver}}
     make
     make install
   args:
@@ -166,7 +183,7 @@
 
 - name: Compile and install bro
   shell: |
-    cd /home/bro-{{bro_ver}}
+    cd /home/zeek-{{bro_ver}}
     make
     make install
   args:
@@ -179,28 +196,28 @@
   when: ansible_distribution == 'OpenBSD'
 
 - lineinfile:
-   dest: '{{bro_dir}}/share/bro/site/local.bro'
+   dest: '{{bro_dir}}/share/zeek/site/local.zeek'
    regexp: '^redef ignore_checksums = T;'
    line: 'redef ignore_checksums = T;'
 
 - template:
-   src: './template/bro/node.cfg.j2'
+   src: './template/zeek/node.cfg.j2'
    dest: '{{bro_dir}}/etc/node.cfg'
 
 - template:
    src: './template/bro/bro.service.j2'
-   dest: '/etc/systemd/system/bro.service'
+   dest: '/etc/systemd/system/zeek.service'
    mode: 0755
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - lineinfile:
    dest: '/etc/crontab'
-   line: '0-59/5 * * * * root {{bro_dir}}/bin/broctl cron'
+   line: '0-59/5 * * * * root {{bro_dir}}/bin/zeekctl cron'
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - lineinfile:
    dest: '/var/cron/tabs/root'
-   line: '0-59/5 * * * * {{bro_dir}}/bin/broctl cron'
+   line: '0-59/5 * * * * {{bro_dir}}/bin/zeekctl cron'
   when: ansible_distribution == 'OpenBSD'
 
-- shell: '{{bro_dir}}/bin/broctl deploy'
+- shell: '{{bro_dir}}/bin/zeekctl deploy'

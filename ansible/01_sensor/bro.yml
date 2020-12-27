@@ -1,10 +1,12 @@
 ---
 - hosts: all
   gather_facts: true
-  remote_user: toor
   become: true
   become_method: sudo
   become_user: root
+  vars:
+    bro_ver: "3.2.2"
+    bro_dir: "/opt/zeek"
+    pfring_dir: "/opt/pfring"
   tasks:
-    - include_vars: "./var/bro_vars.yml"
     - include: ./task/bro_tasks.yml

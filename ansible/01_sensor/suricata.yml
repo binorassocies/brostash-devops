@@ -1,12 +1,12 @@
 ---
 - hosts: all
   gather_facts: true
-  remote_user: toor
   become: true
   become_method: sudo
   become_user: root
   vars:
-    suricata_ver: "5.0.2"
+    suricata_ver: "6.0.0"
+    pfring_dir: "/opt/pfring"
     suricata_dir: "/opt/suricata"
   tasks:
     - include: ./task/suricata_tasks.yml
