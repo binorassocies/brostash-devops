@@ -1,24 +1,37 @@
 # Ansible playbooks
 This directory holds a collection of Ansible playbooks to build a network gateway/sensor and Elastic stack (Elasticsearch/Logstash/Kibana) nodes. For the network gateway and sensor, the playbooks run on both Debian and OpenBSD. The Elastic/Logstash playbooks works only on
 
-## Gateway
+## Gateway and Access Point
 ***00_gateway***: tasks to deploy a network gateway. The system will includes a DHCP, DNS, HTTP and Samba server. On an OpenBSD host, an NFS file share will be also deployed. The DNS is a caching/forwarding server using unbound. It is forwarding the DNS queries using DNS over TLS.
 
-*Run with*: On a local system
+*Deploy with*: On a local system
 ```
 cd 00_gateway
-ansible -i ../inventory gate.yml
+ansible-playbook -i ../inventory gate.yml
+```
+The directory contains also a playbook to deploy a raspberry pi based AP.
+*Deploy with*: On a local system
+```
+ansible-playbook -i ../inventory gate_ap.yml
 ```
 
 ## Sensor
-***01_sensor***: tasks to deploy the Bro IDS with optional support for PF_RING(Only on Debian host). The default configuration makes Bro listen on all the host interfaces. To deploy Bro without PF_RING support just comment the definition of the `pfring_dir` variables in the `bro_vars.yml` file.
+***01_sensor***: tasks to deploy the Bro and suricata NIDS with optional support for PF_RING(Only on Debian host). The default configuration makes Bro/Suricata listen on all the host interfaces. To deploy Bro/Suricata without PF_RING support just comment the definition of the `pfring_dir` variables in the `bro_vars.yml` file.
 
-*Run with*: On a local system
+To install PF_RING, on a local system *Run*:
 ```
 cd 01_sensor
-ansible -i ../inventory pfring.yml
-ansible -i ../inventory bro.yml
-
+ansible-playbook -i ../inventory pfring.yml
+```
+To install Zeek/Bro, on a local system *Run*:
+```
+cd 01_sensor
+ansible-playbook -i ../inventory bro.yml
+```
+To install Suricata, on a local system *Run*:
+```
+cd 01_sensor
+ansible-playbook -i ../inventory suricta.yml
 ```
 
 ## Elastic
@@ -27,7 +40,7 @@ ansible -i ../inventory bro.yml
 *Run with*: On a local system
 ```
 cd 02_elastik
-ansible -i ../inventory elastik.yml
+ansible-playbook -i ../inventory elastik.yml
 
 ```
 ## Logstash
@@ -36,6 +49,6 @@ ansible -i ../inventory elastik.yml
 *Run with*: On a local system
 ```
 cd 03_logstash
-ansible -i ../inventory logstash.yml
+ansible-playbook -i ../inventory logstash.yml
 
 ```
