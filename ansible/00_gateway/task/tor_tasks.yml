@@ -26,6 +26,7 @@
   vars:
     packages:
     - ca-certificates
+    - apt-transport-https
     - dirmngr
     - gnupg
     - curl
@@ -125,7 +126,7 @@
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - apt_repository:
-    repo: deb http://deb.torproject.org/torproject.org {{ansible_distribution_release}} main
+    repo: deb [arch=amd64] http://deb.torproject.org/torproject.org {{ansible_distribution_release}} main
     state: present
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
@@ -137,7 +138,7 @@
 - name: Update tor from tor official repo
   shell: |
     export DEBIAN_FRONTEND=noninteractive
-    apt-get -q -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install tor tor-geoipdb deb.torproject.org-keyring
+    apt-get -q -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install tor deb.torproject.org-keyring
   args:
     executable: /bin/sh
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
