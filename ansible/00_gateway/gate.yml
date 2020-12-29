@@ -12,5 +12,5 @@
     - include: ./task/gateway_tasks.yml
     - include: ./task/hostapd_tasks.yml
       when: setup_ap
-    - include: ./task/anon_tasks.yml
+    - include: ./task/tor_tasks.yml
       when: setup_tor
