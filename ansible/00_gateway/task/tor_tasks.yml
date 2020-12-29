@@ -1,0 +1,178 @@
+- name: Define apt proxy config
+  shell: echo "Acquire::http::Proxy \"{{apt_proxy}}\";" > /etc/apt/apt.conf.d/00apt-proxy
+  when: apt_proxy is defined and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
+
+- name: apt-get update
+  apt:
+    update_cache: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: define mirror url
+  set_fact:
+    mirror_url: "https://cdn.openbsd.org/pub/OpenBSD"
+  when: ansible_distribution == 'OpenBSD'
+
+- name: OpenBSD define mirror url
+  lineinfile:
+   dest: /etc/installurl
+   create: yes
+   regexp: '^{{ mirror_url }}'
+   line: '{{ mirror_url }}'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: install deb packages
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - ca-certificates
+    - dirmngr
+    - gnupg
+    - curl
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: install bsd packages
+  openbsd_pkg:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - curl
+    - sudo--
+  when: ansible_distribution == 'OpenBSD'
+
+- name: install gnupg packages
+  command: pkg_add https://ftp.openbsd.org/pub/OpenBSD/6.5/packages/amd64/gnupg-2.2.12.tgz
+  when: ansible_distribution == 'OpenBSD'
+
+- name: install tor privoxy packages
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - privoxy
+    - tor
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: install packages
+  openbsd_pkg:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - tor
+  when: ansible_distribution == 'OpenBSD'
+
+- name: overwrite tor user name
+  set_fact:
+    tor_uname: "_tor"
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Create /var/log/tor
+  file: path=/var/log/tor state=directory owner={{tor_uname}} group={{tor_uname}}
+
+- name: Create /var/lib/tor
+  file: path=/var/lib/tor state=directory owner={{tor_uname}} group={{tor_uname}}
+
+- template:
+   src: './template/tor/torrc.j2'
+   dest: '/etc/tor/torrc'
+
+- lineinfile:
+   dest: '/etc/privoxy/config'
+   regexp: '^forward-socks5t'
+   line: 'forward-socks5t   /               127.0.0.1:{{tor_socks_port}} .'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Enable service tor
+  service:
+    name: tor
+    enabled: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: enable tor service
+  command: rcctl enable tor
+  when: ansible_distribution == 'OpenBSD'
+
+- name: Enable service privoxy
+  service:
+    name: privoxy
+    enabled: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: start service tor
+  service:
+    name: tor
+    state: started
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: start service privoxy
+  service:
+    name: privoxy
+    state: started
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Deploy tor apt key
+  copy: src="{{ item }}" dest=/tmp/tor.apt.key
+  with_fileglob:
+    - "./data/tor.apt.key"
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- shell: echo "Acquire::http::Proxy \"http://127.0.0.1:8118\";" > /etc/apt/apt.conf.d/00apt-proxy
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- apt_key:
+    file: /tmp/tor.apt.key
+    state: present
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- apt_repository:
+    repo: deb http://deb.torproject.org/torproject.org {{ansible_distribution_release}} main
+    state: present
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: apt-get update
+  apt:
+    update_cache: yes
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Update tor from tor official repo
+  shell: |
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get -q -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install tor tor-geoipdb deb.torproject.org-keyring
+  args:
+    executable: /bin/sh
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- name: Create /opt/iptables_conf
+  file: path=/opt/iptables_conf state=directory
+
+- template:
+   src: './template/tor/iptables_tor.j2'
+   dest: '/opt/iptables_conf/iptables_tor'
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- template:
+   src: './template/tor/iptables_tor.j2'
+   dest: '/etc/network/if-up.d/iptables'
+   mode: 0755
+  when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+- template:
+   src: './template/tor/pf.tor.conf.j2'
+   dest: '/etc/pf.tor.open.conf'
+  when: ansible_distribution == 'OpenBSD'
+
+- template:
+   src: './template/tor/pf.tor.conf.j2'
+   dest: '/etc/pf.conf'
+  when: ansible_distribution == 'OpenBSD'
+
+- name: create lo1 interface
+  command: ifconfig lo1 create up 127.0.0.2
+  when: ansible_distribution == 'OpenBSD'
+
+- lineinfile:
+   dest: /etc/hostname.lo1
+   create: yes
+   regexp: '^inet 127.0.0.2'
+   line: 'inet 127.0.0.2'
+  when: ansible_distribution == 'OpenBSD'

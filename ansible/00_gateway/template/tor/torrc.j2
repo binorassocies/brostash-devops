@@ -1,0 +1,28 @@
+Log notice file /var/log/tor/notices.log
+ReachableAddresses accept *:{{tor_exit_port}}
+RunAsDaemon 1
+AvoidDiskWrites 1
+#SafeSocks 1
+ControlPort 9051
+#HashedControlPassword 16:B195
+User {{tor_uname}}
+DataDirectory /var/lib/tor
+TransPort 127.0.0.1:{{tor_trans_port}} IsolateDestAddr IsolateDestPort
+DNSPort 127.0.0.1:{{tor_dns_port}}
+SocksPort 127.0.0.1:{{tor_socks_port}} IsolateDestAddr IsolateDestPort
+
+
+{% set def_nic = ansible_default_ipv4.interface %}
+{% for nic in ansible_interfaces %}
+{% set ifacedata = hostvars[inventory_hostname]['ansible_' + nic] %}
+{% if ifacedata.type == 'ether' and ifacedata.device != def_nic %}
+{% if ifacedata.ipv4.address is defined %}
+{% set ip_adr = ifacedata.ipv4.address %}
+{% elif ifacedata.ipv4 is sequence %}
+{% set ip_adr = ifacedata.ipv4[0].address %}
+{% endif %}
+TransPort {{ip_adr}}:{{tor_trans_port}} IsolateDestAddr IsolateDestPort
+DNSPort {{ip_adr}}:{{tor_dns_port}}
+SocksPort {{ip_adr}}:{{tor_socks_port}} IsolateDestAddr IsolateDestPort
+{% endif %}
+{% endfor %}

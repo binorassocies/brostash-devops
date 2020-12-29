@@ -1,0 +1,56 @@
+#!/bin/sh
+{% set def_nic = ansible_default_ipv4.interface %}
+/sbin/iptables -F
+/sbin/iptables -t nat -F
+/sbin/iptables -t mangle -F
+/sbin/iptables -X
+/sbin/iptables -P INPUT DROP
+/sbin/iptables -P OUTPUT ACCEPT
+/sbin/iptables -P FORWARD DROP
+/sbin/iptables -A INPUT -p icmp --icmp-type echo-request -m limit --limit 10/s -j ACCEPT
+
+/sbin/iptables -A INPUT -j ACCEPT -i lo
+
+/sbin/iptables -A INPUT -j ACCEPT -i {{def_nic}} -p tcp -m multiport --dports 22,80,443,5044,9200,8080,9220
+/sbin/iptables -A INPUT -j ACCEPT -i {{def_nic}} -p tcp -m state --state ESTABLISHED,RELATED
+/sbin/iptables -A INPUT -j ACCEPT -i {{def_nic}} -p udp -m state --state ESTABLISHED,RELATED
+/sbin/iptables -A INPUT -j ACCEPT -i {{def_nic}} -p icmp -m state --state ESTABLISHED
+
+{% for nic in ansible_interfaces %}
+{% set ifd = hostvars[inventory_hostname]['ansible_' + nic] %}
+{% if ifd.type == 'ether' and ifd.device != def_nic %}
+{% if ifd.ipv4.address is defined %}
+{% set ip_adr = ifd.ipv4.address %}
+{% elif ifd.ipv4 is sequence %}
+{% set ip_adr = ifd.ipv4[0].address %}
+{% endif %}
+
+/sbin/iptables -t nat -A PREROUTING -i {{nic}} -p udp --dport 123 -j REDIRECT --to-port 123
+/sbin/iptables -t nat -A PREROUTING -i {{nic}} -p udp --dport 53 -j REDIRECT --to-port {{tor_dns_port}}
+
+/sbin/iptables -t nat -A PREROUTING -i {{nic}} -d 10.0.0.0/8 -j RETURN
+/sbin/iptables -t nat -A PREROUTING -i {{nic}} -d 192.168.0.0/16 -j RETURN
+/sbin/iptables -t nat -A PREROUTING -i {{nic}} -p tcp --syn ! -d {{ip_adr}} -j REDIRECT --to-port {{tor_trans_port}}
+
+/sbin/iptables -A INPUT -j ACCEPT -i {{nic}} -p tcp -m state --state ESTABLISHED,RELATED
+/sbin/iptables -A INPUT -j ACCEPT -i {{nic}} -p udp -m state --state ESTABLISHED,RELATED
+/sbin/iptables -A INPUT -j ACCEPT -i {{nic}} -p udp -m multiport --dports 67,53,123,{{tor_dns_port}}
+/sbin/iptables -A INPUT -j ACCEPT -i {{nic}} -p tcp -m multiport --dports {{tor_trans_port}},{{tor_socks_port}},22
+/sbin/iptables -A INPUT -j ACCEPT -i {{nic}} -p tcp -m multiport --dports 80,443,139,445
+/sbin/iptables -A INPUT -j ACCEPT -i {{nic}} -p tcp -m multiport --dports 5044,9200
+/sbin/iptables -A FORWARD -o {{nic}} -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+{% for nic_2 in ansible_interfaces %}
+{% set ifd_2 = hostvars[inventory_hostname]['ansible_' + nic_2] %}
+{% if nic_2 != nic and ifd_2.type == 'ether' and ifd_2.device != def_nic %}
+{% if ifd_2.ipv4.address is defined %}
+{% set ip2 = ifd_2.ipv4.address %}
+{% elif ifd_2.ipv4 is sequence %}
+{% set ip2 = ifd_2.ipv4[0].address %}
+{% endif %}
+/sbin/iptables -A FORWARD -i {{nic}} -j ACCEPT -d {{ip2}}/24
+{% endif %}
+{% endfor %}
+
+{% endif %}
+{% endfor %}

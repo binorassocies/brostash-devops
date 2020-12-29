@@ -1,0 +1,42 @@
+### config pf ###
+### PF config full transparent tor routing ###
+{% set def_nic = ansible_default_ipv4.interface %}
+ext_if="{{def_nic}}"
+tcp_ext_out = "{80, 443}"
+table <local_subnets> { 192.168.0.0/16, 10.0.0.0/8 }
+
+set skip on lo0
+match in all scrub (no-df)
+block log all
+block in quick from urpf-failed
+pass in quick on $ext_if inet proto tcp to port = ssh keep state
+
+pass out quick on $ext_if inet proto tcp from any to any port $tcp_ext_out modulate state
+pass out quick on $ext_if inet proto udp from any to any port 53 modulate state
+pass out quick on $ext_if inet proto udp from any to any port 123 modulate state
+
+{% for nic in ansible_interfaces %}
+{% set ifd = hostvars[inventory_hostname]['ansible_' + nic] %}
+{% if ifd.type == 'ether' and ifd.device != def_nic %}
+{% if ifd.ipv4.address is defined %}
+{% set ip_adr = ifd.ipv4.address %}
+{% elif ifd.ipv4 is sequence %}
+{% set ip_adr = ifd.ipv4[0].address %}
+{% endif %}
+
+pass in quick on {{nic}} inet proto udp to port 53 rdr-to {{ip_adr}} port {{tor_dns_port}}
+pass in quick on {{nic}} inet proto udp to port 123 rdr-to {{ip_adr}} port 123
+pass in quick on {{nic}} inet proto tcp to ! <local_subnets> rdr-to {{ip_adr}} port {{tor_trans_port}}
+pass in quick on {{nic}} inet proto tcp to port { ssh http https domain 139 445 {{tor_trans_port}} {{tor_socks_port}} } keep state
+pass in quick on {{nic}} inet proto udp to port { ntp domain } keep state
+pass out on {{nic}} to {{nic}}/24
+
+{% for nic_2 in ansible_interfaces %}
+{% set ifd_2 = hostvars[inventory_hostname]['ansible_' + nic_2] %}
+{% if nic_2 != nic and ifd_2.type == 'ether' %}
+pass in on {{nic}} to {{nic_2}}/24
+{% endif %}
+{% endfor %}
+
+{% endif %}
+{% endfor %}

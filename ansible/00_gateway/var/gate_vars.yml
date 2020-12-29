@@ -1,1 +1,10 @@
 use_dot: true
+mydom: 'pleasechange.me'
+unbound_root_dir: '/etc/unbound'
+ap_ssid: 'PleaseChangeMe'
+ap_nic: 'wlan0'
+tor_uname: 'debian-tor'
+tor_exit_port: 443
+tor_trans_port: 9060
+tor_dns_port: 9053
+tor_socks_port: 9050
