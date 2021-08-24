@@ -39,10 +39,7 @@
     packages:
     - curl
     - sudo--
-  when: ansible_distribution == 'OpenBSD'
-
-- name: install gnupg packages
-  command: pkg_add https://ftp.openbsd.org/pub/OpenBSD/6.5/packages/amd64/gnupg-2.2.12.tgz
+    - gnupg
   when: ansible_distribution == 'OpenBSD'
 
 - name: install tor privoxy packages
@@ -168,7 +165,7 @@
   when: ansible_distribution == 'OpenBSD'
 
 - name: create lo1 interface
-  command: ifconfig lo1 create up 127.0.0.2
+  command: ifconfig lo1 >/dev/null 2>&1 || ifconfig lo1 create up 127.0.0.2
   when: ansible_distribution == 'OpenBSD'
 
 - lineinfile:
