@@ -1,11 +1,11 @@
 [Unit]
-Description=bro
+Description=zeek
 Wants=network-online.target
 After=network-online.target
 
 [Service]
-ExecStart={{bro_dir}}/bin/broctl start
-ExecStop={{bro_dir}}/bin/broctl stop
+ExecStart={{zeek_dir}}/bin/zeekctl start
+ExecStop={{zeek_dir}}/bin/zeekctl stop
 Type=forking
 
 [Install]

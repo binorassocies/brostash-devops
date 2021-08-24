@@ -37,12 +37,10 @@
     - bison
     - libpcap-dev
     - python-dev
-    - libgoogle-perftools-dev
     - cmake
-    - libjemalloc-dev
     - swig
     - zlib1g-dev
-    - libssl1.0-dev
+    - libssl-dev
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - name: define mirror url
@@ -50,9 +48,9 @@
     mirror_url: "https://cdn.openbsd.org/pub/OpenBSD"
   when: ansible_distribution == 'OpenBSD'
 
-- name: overwrite bro install dir
+- name: overwrite zeek install dir
   set_fact:
-    bro_dir: "/usr/local/bro"
+    zeek_dir: "/usr/local/zeek"
   when: ansible_distribution == 'OpenBSD'
 
 - lineinfile:
@@ -101,26 +99,26 @@
   file: src=/usr/local/bin/gpg2 path=/usr/bin/gpg state=link
   when: ansible_distribution == 'OpenBSD'
 
-- name: Create bro install dir
-  file: path={{bro_dir}} state=directory
+- name: Create zeek install dir
+  file: path={{zeek_dir}} state=directory
 
-- name: Download bro source
+- name: Download zeek source
   get_url:
-    url: https://download.zeek.org/zeek-{{bro_ver}}.tar.gz
+    url: https://download.zeek.org/zeek-{{zeek_ver}}.tar.gz
     dest: /tmp/
 
-- name: Download bro signature
+- name: Download zeek signature
   get_url:
-    url: https://download.zeek.org/zeek-{{bro_ver}}.tar.gz.asc
+    url: https://download.zeek.org/zeek-{{zeek_ver}}.tar.gz.asc
     dest: /tmp/
 
-- name: bro pub key
+- name: zeek pub key
   copy:
     src: ./data/zeek.key.asc
     dest: /tmp/zeek.key.asc
 
 - shell: '/usr/bin/gpg --no-tty --import /tmp/zeek.key.asc'
-- shell: '/usr/bin/gpg --no-tty --verify /tmp/zeek-{{bro_ver}}.tar.gz.asc /tmp/zeek-{{bro_ver}}.tar.gz'
+- shell: '/usr/bin/gpg --no-tty --verify /tmp/zeek-{{zeek_ver}}.tar.gz.asc /tmp/zeek-{{zeek_ver}}.tar.gz'
   register: gpg_verify_result
 
 - debug:
@@ -129,61 +127,61 @@
 - debug:
     var: gpg_verify_result
 
-- name: Extract bro archive
+- name: Extract zeek archive
   unarchive:
-    src: /tmp/zeek-{{bro_ver}}.tar.gz
+    src: /tmp/zeek-{{zeek_ver}}.tar.gz
     dest: /tmp
     remote_src: yes
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
-- name: Extract bro archive
+- name: Extract zeek archive
   unarchive:
-    src: /tmp/zeek-{{bro_ver}}.tar.gz
+    src: /tmp/zeek-{{zeek_ver}}.tar.gz
     dest: /home
     remote_src: yes
   when: ansible_distribution == 'OpenBSD'
 
-- name: configure bro
+- name: configure zeek
   shell: |
-    cd /tmp/zeek-{{bro_ver}}
-    ./configure --prefix={{bro_dir}} --with-pcap={{pfring_dir}}
+    cd /tmp/zeek-{{zeek_ver}}
+    ./configure --prefix={{zeek_dir}} --with-pcap={{pfring_dir}}
   args:
     executable: /bin/sh
   when: (pfring_dir is defined and os_id != "Raspbian") and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
-- name: configure bro without pfring
+- name: configure zeek without pfring
   shell: |
-    cd /tmp/zeek-{{bro_ver}}
-    ./configure --prefix={{bro_dir}}
+    cd /tmp/zeek-{{zeek_ver}}
+    ./configure --prefix={{zeek_dir}}
   args:
     executable: /bin/sh
   when: (pfring_dir is not defined or os_id == "Raspbian") and (ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu')
 
-- name: configure bro
+- name: configure zeek
   shell: |
-    cd /home/zeek-{{bro_ver}}
-    ./configure --prefix={{bro_dir}}
+    cd /home/zeek-{{zeek_ver}}
+    ./configure --prefix={{zeek_dir}}
   args:
     executable: /bin/sh
   environment:
     CC: "egcc"
     CXX: "eg++"
     LDFLAGS: "-L/usr/local/lib/libbind -lbind -Wl,-rpath /usr/local/lib/libbind"
-    BRO_DIR: "{{bro_dir}}"
+    ZEEK_DIR: "{{zeek_dir}}"
   when: ansible_distribution == 'OpenBSD'
 
-- name: Compile and install bro
+- name: Compile and install zeek
   shell: |
-    cd /tmp/zeek-{{bro_ver}}
+    cd /tmp/zeek-{{zeek_ver}}
     make
     make install
   args:
     executable: /bin/sh
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
-- name: Compile and install bro
+- name: Compile and install zeek
   shell: |
-    cd /home/zeek-{{bro_ver}}
+    cd /home/zeek-{{zeek_ver}}
     make
     make install
   args:
@@ -192,32 +190,38 @@
     CC: "egcc"
     CXX: "eg++"
     LDFLAGS: "-L/usr/local/lib/libbind -lbind -Wl,-rpath /usr/local/lib/libbind"
-    BRO_DIR: "{{bro_dir}}"
+    ZEEK_DIR: "{{zeek_dir}}"
   when: ansible_distribution == 'OpenBSD'
 
 - lineinfile:
-   dest: '{{bro_dir}}/share/zeek/site/local.zeek'
+   dest: '{{zeek_dir}}/share/zeek/site/local.zeek'
    regexp: '^redef ignore_checksums = T;'
    line: 'redef ignore_checksums = T;'
 
-- template:
-   src: './template/zeek/node.cfg.j2'
-   dest: '{{bro_dir}}/etc/node.cfg'
+- lineinfile:
+   dest: '{{zeek_dir}}/share/zeek/site/local.zeek'
+   regexp: '^@load policy/tuning/json-logs.zeek'
+   line: '@load policy/tuning/json-logs.zeek'
+
 
 - template:
-   src: './template/bro/bro.service.j2'
+   src: './template/zeek/node.cfg.j2'
+   dest: '{{zeek_dir}}/etc/node.cfg'
+
+- template:
+   src: './template/zeek/zeek.service.j2'
    dest: '/etc/systemd/system/zeek.service'
    mode: 0755
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - lineinfile:
    dest: '/etc/crontab'
-   line: '0-59/5 * * * * root {{bro_dir}}/bin/zeekctl cron'
+   line: '0-59/5 * * * * root {{zeek_dir}}/bin/zeekctl cron'
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 
 - lineinfile:
    dest: '/var/cron/tabs/root'
-   line: '0-59/5 * * * * {{bro_dir}}/bin/zeekctl cron'
+   line: '0-59/5 * * * * {{zeek_dir}}/bin/zeekctl cron'
   when: ansible_distribution == 'OpenBSD'
 
-- shell: '{{bro_dir}}/bin/zeekctl deploy'
+- shell: '{{zeek_dir}}/bin/zeekctl deploy'

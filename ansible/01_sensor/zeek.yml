@@ -5,8 +5,8 @@
   become_method: sudo
   become_user: root
   vars:
-    bro_ver: "3.2.2"
-    bro_dir: "/opt/zeek"
+    zeek_ver: "4.0.3"
+    zeek_dir: "/opt/zeek"
     pfring_dir: "/opt/pfring"
   tasks:
-    - include: ./task/bro_tasks.yml
+    - include: ./task/zeek_tasks.yml
