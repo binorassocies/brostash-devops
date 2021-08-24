@@ -3,7 +3,6 @@
     name: "{{ packages }}"
   vars:
     packages:
-    - openjdk-11-jre-headless
     - apt-transport-https
   when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
 

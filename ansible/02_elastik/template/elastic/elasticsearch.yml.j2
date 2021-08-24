@@ -1,51 +1,63 @@
 cluster.name: {{cluter_name}}
 node.name: "{{node_name}}"
+action.destructive_requires_name: true
 {% if mem_lock is defined %}
 bootstrap.memory_lock: true
 {% else %}
 bootstrap.memory_lock: false
 {% endif %}
-action.destructive_requires_name: true
+
+{% if is_single_node is defined %}
+discovery.type: single-node
+{% endif %}
+
 {% if net_host_site is defined %}
 network.host: [_local_, _site_]
 {% else %}
 network.host: [_local_]
 {% endif %}
+
 {% if log_dir is defined %}
 path.logs: {{log_dir}}
 {% else %}
 path.logs: /var/log/elasticsearch
 {% endif %}
+
 {% if not_master is defined %}
 node.master: false
 {% endif %}
 {% if not_data is defined %}
 node.data: false
 {% endif %}
+
 {% if not_ingest is defined %}
 node.ingest: false
 {% endif %}
+
 {% if data_dir is defined %}
 path.data: {{data_dir}}
 {% endif %}
+
 {% if pub_host is defined %}
 network.publish_host: _{{pub_host}}_
 {% endif %}
+
 {% if master_nodes is defined %}
 discovery.zen.minimum_master_nodes: {{master_nodes}}
 {% endif %}
+
 {% if ping_hosts is defined %}
 discovery.zen.ping.unicast.hosts: {{ping_hosts}}
 {% endif %}
+
 {% if attr_box_type is defined %}
 node.attr.box_type: {{attr_box_type}}
 {% endif %}
+
 {% if attr_box_tag is defined %}
 node.attr.box_tag: {{attr_box_tag}}
 {% endif %}
+
 {% if disable_xpack_ml is defined %}
 xpack.ml.enabled: false
-{% endif %}
-{% if is_single_node is defined %}
-discovery.type: single-node
 {% endif %}

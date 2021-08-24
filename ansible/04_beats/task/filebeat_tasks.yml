@@ -102,10 +102,8 @@
 
 - name: build filebeat binary
   shell: |
-    cd /opt/go
-    go get github.com/elastic/beats
-    cd /opt/go/src/github.com/elastic/beats/
-    git checkout v{{beat_version}}
+    mkdir -p /opt/go/src/github.com/elastic
+    git clone https://github.com/elastic/beats /opt/go/src/github.com/elastic/beats
     cd /opt/go/src/github.com/elastic/beats/filebeat/
     make
     mv filebeat /usr/bin/.
